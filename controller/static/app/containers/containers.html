@@ -214,7 +214,7 @@
                         <td>{{vm.containerName(c)}}</td> 
                         <td>{{c.Image}}</td>
                         <td>{{c.Status}}</td>
-                        <td>{{c.Created * 1000 | date:'yyyy-MM-dd HH:mm:ss Z'}}</td>
+                        <td>{{c.Created}}</td>
                         <td class="collapsing">
                             <div ui-sref="dashboard.inspect({id: c.Id})" class="basic compact blue ui icon button">
                                 <i class="search icon"></i>

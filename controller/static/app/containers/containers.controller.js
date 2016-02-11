@@ -139,8 +139,32 @@
             ContainerService.list()
                 .then(function(data) {
                     vm.containers = data; 
-                    angular.forEach(vm.containers, function (container) {
-                        vm.selected[container.Id] = {Id: container.Id, Selected: vm.selectedAll};
+                    angular.forEach(vm.containers, function (c) {
+                        vm.selected[c.Id] = {Id: c.Id, Selected: vm.selectedAll};
+                        var date = new Date(c.Created*1000);
+                        var year = date.getFullYear();
+                        var month = date.getMonth() + 1;
+                        if(month < 10){
+                           month = "0" + month;
+                        }
+                        var day= date.getDate();
+                        if(day < 10){
+                           day = "0" + day;
+                        }
+                        var hour = date.getHours();
+                        if(hour < 10){
+                           hour = "0" + hour;
+                        }
+                        var min = date.getMinutes();
+                        if(min < 10){
+                           min = "0" + min;
+                        }
+                        var sec = date.getSeconds();
+                        if(sec < 10){
+                           sec = "0" + sec;
+                        }
+                        var newtimestamp = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + sec;
+                        c.Created = newtimestamp;
                     });
                 }, function(data) {
                     vm.error = data;

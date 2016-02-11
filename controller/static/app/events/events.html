@@ -63,7 +63,7 @@
                 </thead>
                 <tbody>
                     <tr ng-repeat="e in filteredEvents = (vm.events | filter:tableFilter)">
-                        <td>{{e.time}}</td>
+                        <td>{{e.time | date:'yyyy-MM-dd HH:mm:ss'}}</td>
                         <td>{{e.username}}</td>
                         <td>{{e.type}}</td>
                         <td>{{e.message}}</td>
