@@ -2,13 +2,19 @@ package api
 
 import (
 	"encoding/json"
-	"net/http"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/shipyard/shipyard/model"
+	"net/http"
+	"strings"
 )
 
+func getCurrentUser(r *http.Request) string {
+	var header = r.Header.Get("X-Access-Token")
+	parts := strings.Split(header, ":")
+	user := parts[0]
+	return user
+}
 func (a *Api) projects(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
@@ -24,12 +30,17 @@ func (a *Api) projects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) saveProject(w http.ResponseWriter, r *http.Request) {
+	//Get the username of who made the request
+	author := getCurrentUser(r)
 
 	var project *model.Project
+
 	if err := json.NewDecoder(r.Body).Decode(&project); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	//Inject the author into the projects
+	project.Author = author
 	if err := a.manager.SaveProject(project); err != nil {
 		log.Errorf("error saving project: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -60,8 +71,12 @@ func (a *Api) saveProject(w http.ResponseWriter, r *http.Request) {
 func (a *Api) updateProject(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
+	//Get the username of who made the request
+
+	updater := getCurrentUser(r)
 
 	project, err := a.manager.Project(id)
+
 	if err != nil {
 		log.Errorf("error updating project: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -71,6 +86,8 @@ func (a *Api) updateProject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	//Update the updatedBy field with the user who initiates the request
+	project.UpdatedBy = updater
 
 	if err := a.manager.UpdateProject(project); err != nil {
 		log.Errorf("error updating project: %s", err)

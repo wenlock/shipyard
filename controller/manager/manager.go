@@ -777,8 +777,6 @@ func (m DefaultManager) SaveProject(project *model.Project) error {
 	}
 	project.CreationTime = time.Now().UTC()
 	project.UpdateTime = project.CreationTime
-	// TODO: find a way to retrieve the current user
-	project.Author = "author"
 
 	//create the project
 	response, err := r.Table(tblNameProjects).Insert(project).RunWrite(m.session)
@@ -827,8 +825,7 @@ func (m DefaultManager) UpdateProject(project *model.Project) error {
 			"status":      project.Status,
 			"needsBuild":  project.NeedsBuild,
 			"updateTime":  time.Now().UTC(),
-			// TODO: find a way to retrieve the current user
-			"updatedBy": "updater",
+			"updatedBy":   project.UpdatedBy,
 		}
 
 		//TODO: Find a more elegant approach
