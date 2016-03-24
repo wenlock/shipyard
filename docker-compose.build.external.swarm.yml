@@ -6,7 +6,7 @@ rethinkdb:
          - "28015"
          - "29015"
      environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com"
+         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,$SWARM"
  
 media:
      restart: always
@@ -18,14 +18,14 @@ media:
      volumes:
          - "./controller/static:/go/src/github.com/shipyard/shipyard/controller/static"
      environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com"
+         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,$SWARM"
  
 controller:
      restart: always
      build: .
      dockerfile: Dockerfile.build
      entrypoint: /bin/bash
-     command: -c "make build && cd controller && ./controller -D server --rethinkdb-addr rethinkdb:28015 -d tcp://myd-vm23183.hpswlabs.adapps.hp.com:3375"
+     command: -c "make build && cd controller && ./controller -D server --rethinkdb-addr rethinkdb:28015 -d tcp://$SWARM"
      links:
          - rethinkdb
      volumes:
@@ -35,4 +35,4 @@ controller:
      ports:
          - "8888:8080"
      environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com" 
+         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,$SWARM"
