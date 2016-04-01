@@ -32,6 +32,7 @@ type (
 		tlsKeyPath         string
 		dUrl               string
 		fwd                *forward.Forwarder
+		globalMux          http.Handler
 	}
 
 	ApiConfig struct {
@@ -70,7 +71,8 @@ func NewApi(config ApiConfig) (*Api, error) {
 	}, nil
 }
 
-func (a *Api) Run() error {
+func (a *Api) Setup() (*http.ServeMux, error) {
+
 	globalMux := http.NewServeMux()
 	controllerManager := a.manager
 	client := a.manager.DockerClient()
@@ -79,7 +81,7 @@ func (a *Api) Run() error {
 	var err error
 	a.fwd, err = forward.New()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	u := client.URL
@@ -98,7 +100,7 @@ func (a *Api) Run() error {
 			})
 		f, err := forward.New(r)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		a.fwd = f
@@ -138,6 +140,30 @@ func (a *Api) Run() error {
 	apiRouter.HandleFunc("/api/ilm_images/{id}", a.updateImage).Methods("PUT")
 	apiRouter.HandleFunc("/api/ilm_images/{id}", a.image).Methods("GET")
 	apiRouter.HandleFunc("/api/ilm_images/{id}", a.deleteImage).Methods("DELETE")
+
+	//Result Related routes
+	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.createResult).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.getResults).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.getResult).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.updateResult).Methods("PUT")
+	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.deleteResult).Methods("DELETE")
+	//end Result related routes
+
+	//Test related routes
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests", a.createTest).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests", a.getTests).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.getTest).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.updateTest).Methods("PUT")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.deleteTest).Methods("DELETE")
+
+	//Provider related routes
+	apiRouter.HandleFunc("/api/providers", a.createProvider).Methods("POST")
+	apiRouter.HandleFunc("/api/providers", a.getProviders).Methods("GET")
+	apiRouter.HandleFunc("/api/providers/{providerId}", a.getProvider).Methods("GET")
+	apiRouter.HandleFunc("/api/providers/{providerId}", a.updateProvider).Methods("PUT")
+	apiRouter.HandleFunc("/api/providers/{providerId}", a.deleteProvider).Methods("DELETE")
+	apiRouter.HandleFunc("/api/providers/{providerId}/jobs", a.getJobsByProviderId).Methods("GET")
+	apiRouter.HandleFunc("/api/providers/{providerId}/jobs", a.addJobToProviderId).Methods("POST")
 
 	apiRouter.HandleFunc("/api/roles", a.roles).Methods("GET")
 	apiRouter.HandleFunc("/api/roles/{name}", a.role).Methods("GET")
@@ -322,6 +348,10 @@ func (a *Api) Run() error {
 		}
 		log.Infof("created admin user: username: admin password: shipyard")
 	}
+	return globalMux, nil
+}
+
+func (a *Api) Run(globalMux http.Handler) error {
 
 	log.Infof("controller listening on %s", a.listenAddr)
 
