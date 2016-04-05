@@ -14,7 +14,7 @@ type Result struct {
 	EndDate        time.Time     `json:"endDate" gorethink:"endDate"`
 	CreateDate     time.Time     `json:"createDate" gorethink:"createDate"`
 	Author         string        `json:"author" gorethink:"author"`
-	ProjectVersion string        `json:"projectVersion" gorethink:"lastRunTime"`
+	ProjectVersion string        `json:"projectVersion" gorethink:"projectVersion"`
 	LastTagApplied string        `json:"lastTagapplied" gorethink:"lastTagApplied"`
 	LastUpdate     time.Time     `json:"lastUpdate" gorethink:"lastUpdate"`
 	Updater        string        `json:"updater" gorethink:"updater"`

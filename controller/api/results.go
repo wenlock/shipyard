@@ -47,7 +47,7 @@ func (a *Api) updateResult(w http.ResponseWriter, r *http.Request) {
 	projId := vars["projectId"]
 	resultId := vars["resultId"]
 
-	result, err := a.manager.GetResult(projId, resultId)
+	result, err := a.manager.GetResult(resultId)
 	if err != nil {
 		log.Errorf("error updating result: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -69,13 +69,13 @@ func (a *Api) updateResult(w http.ResponseWriter, r *http.Request) {
 }
 func (a *Api) getResult(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
+	//projId := vars["projectId"]
 	resultId := vars["resultId"]
 
-	result, err := a.manager.GetResult(projId, resultId)
+	result, err := a.manager.GetResult(resultId)
 	if err != nil {
 		log.Errorf("error retrieving result: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -87,16 +87,15 @@ func (a *Api) getResult(w http.ResponseWriter, r *http.Request) {
 
 func (a *Api) deleteResult(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
 	resultId := vars["resultId"]
 
-	result, err := a.manager.GetResult(projId, resultId)
+	result, err := a.manager.GetResult(resultId)
 	if err != nil {
 		log.Errorf("error deleting result: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if err := a.manager.DeleteResult(projId, resultId); err != nil {
+	if err := a.manager.DeleteResult(resultId); err != nil {
 		log.Errorf("error deleting result: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -262,12 +262,12 @@ func (m MockManager) UpdateTest(projectId string, test *model.Test) error   { re
 func (m MockManager) DeleteTest(projectId string, testId string) error      { return nil }
 func (m MockManager) DeleteAllTests() error                                 { return nil }
 
-func (m MockManager) GetResults(projectId string) ([]*model.Result, error)        { return nil, nil }
-func (m MockManager) GetResult(projectId, resultId string) (*model.Result, error) { return nil, nil }
-func (m MockManager) CreateResult(projectId string, result *model.Result) error   { return nil }
-func (m MockManager) UpdateResult(projectId string, result *model.Result) error   { return nil }
-func (m MockManager) DeleteResult(projectId string, resultId string) error        { return nil }
-func (m MockManager) DeleteAllResults() error                                     { return nil }
+func (m MockManager) GetResults(projectId string) ([]*model.Result, error)      { return nil, nil }
+func (m MockManager) GetResult(resultId string) (*model.Result, error)          { return nil, nil }
+func (m MockManager) CreateResult(projectId string, result *model.Result) error { return nil }
+func (m MockManager) UpdateResult(projectId string, result *model.Result) error { return nil }
+func (m MockManager) DeleteResult(resultId string) error                        { return nil }
+func (m MockManager) DeleteAllResults() error                                   { return nil }
 
 func (m MockManager) GetProviders() ([]*model.Provider, error)               { return nil, nil }
 func (m MockManager) GetProvider(providerId string) (*model.Provider, error) { return nil, nil }

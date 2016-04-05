@@ -124,10 +124,10 @@ type (
 		DeleteAllTests() error
 
 		GetResults(projectId string) ([]*model.Result, error)
-		GetResult(projectId, resultId string) (*model.Result, error)
+		GetResult(resultId string) (*model.Result, error)
 		CreateResult(projectId string, result *model.Result) error
 		UpdateResult(projectId string, result *model.Result) error
-		DeleteResult(projectId string, resultId string) error
+		DeleteResult(resultId string) error
 		DeleteAllResults() error
 
 		GetProviders() ([]*model.Provider, error)
@@ -1241,13 +1241,13 @@ func (m DefaultManager) GetResults(projectId string) ([]*model.Result, error) {
 	return results, nil
 }
 
-func (m DefaultManager) GetResult(projectId, resultId string) (*model.Result, error) {
+func (m DefaultManager) GetResult(resultId string) (*model.Result, error) {
 	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Run(m.session)
 	if err != nil {
 		return nil, err
 	}
 	if res.IsNil() {
-		return nil, ErrImageDoesNotExist
+		return nil, ErrResultDoesNotExist
 	}
 	var result *model.Result
 	if err := res.One(&result); err != nil {
@@ -1259,44 +1259,37 @@ func (m DefaultManager) GetResult(projectId, resultId string) (*model.Result, er
 func (m DefaultManager) CreateResult(projectId string, result *model.Result) error {
 	var eventType string
 
-	result, err := m.GetResult(projectId, result.ID)
+	res, err := m.GetResult(result.ID)
 	if err != nil && err != ErrResultDoesNotExist {
 		return err
 	}
 
-	if result != nil {
+	if res != nil {
 		return ErrResultExists
 	}
 
 	result.ProjectId = projectId
-	response, err := r.Table(tblNameResults).Insert(result).RunWrite(m.session)
-
-	if err != nil {
+	if _, err := r.Table(tblNameResults).Insert(result).RunWrite(m.session); err != nil {
 		return err
 	}
-	eventType = "add-result"
 
-	result.ID = func() string {
-		if len(response.GeneratedKeys) > 0 {
-			return string(response.GeneratedKeys[0])
-		}
-		return ""
-	}()
+	eventType = "add-result"
 
 	m.logEvent(eventType, fmt.Sprintf("id=%s", result.ID), []string{"security"})
 
 	return nil
 }
+
 func (m DefaultManager) UpdateResult(projectId string, result *model.Result) error {
 	var eventType string
 
 	// check if exists; if so, update
-	rez, err := m.GetResult(projectId, result.ID)
+	res, err := m.GetResult(result.ID)
 	if err != nil && err != ErrResultDoesNotExist {
 		return err
 	}
 	// update
-	if rez != nil {
+	if res != nil {
 		updates := map[string]interface{}{
 			"projectId":      result.ProjectId,
 			"description":    result.Description,
@@ -1323,7 +1316,7 @@ func (m DefaultManager) UpdateResult(projectId string, result *model.Result) err
 
 	return nil
 }
-func (m DefaultManager) DeleteResult(projectId string, resultId string) error {
+func (m DefaultManager) DeleteResult(resultId string) error {
 	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Delete().Run(m.session)
 	if err != nil {
 		return err
