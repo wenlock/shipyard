@@ -5,8 +5,7 @@ rethinkdb:
          - "8080"
          - "28015"
          - "29015"
-     environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com"
+     env_file: .env
  
 media:
      restart: always
@@ -17,8 +16,7 @@ media:
      working_dir: /go/src/github.com/shipyard/shipyard
      volumes:
          - "./controller/static:/go/src/github.com/shipyard/shipyard/controller/static"
-     environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com"
+     env_file: .env
  
 controller:
      restart: always
@@ -33,6 +31,5 @@ controller:
      volumes_from:
          - media
      ports:
-         - "8888:8080"
-     environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com" 
+         - "8082:8080"
+     envi_file: .env
