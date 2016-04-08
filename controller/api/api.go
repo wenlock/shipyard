@@ -196,7 +196,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/consolesession/{token}", a.removeConsoleSession).Methods("DELETE")
 
 	// global handler
-	globalMux.Handle("/", http.FileServer(http.Dir("static")))
+	globalMux.Handle("/", http.FileServer(http.Dir("controller/static")))
 
 	auditExcludes := []string{
 		"^/containers/json",

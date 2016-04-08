@@ -47,7 +47,7 @@ controller:
     build: .
     dockerfile: Dockerfile.build
     entrypoint: /bin/bash
-    command: -c "make build && cd controller && ./controller -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
+    command: -c "make all && ./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
     links:
         - rethinkdb
         - swarm
