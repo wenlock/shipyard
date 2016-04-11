@@ -1,0 +1,6 @@
+dist
+release
+Godeps
+.idea
+*.md
+docker-compose.*

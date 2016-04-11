@@ -35,7 +35,7 @@ release-clean:
 	@rm -rf release
 
 release: release-clean dist
-	@mkdir -p release && cd dist && tar -czf ../release/shipyard-ilm.tar.gz * && cd ../ && echo "Release availble under release/ directory"
+	@mkdir -p release && cd dist && tar -czf ../release/shipyard-ilm.tar.gz * && cd ../ && echo "Release available under release/ directory"
 
 test: clean
 	@go test -v `go list ./... | grep -v /vendor | grep -v /test-assets`
