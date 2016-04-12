@@ -1,15 +1,17 @@
 rethinkdb:
      restart: always
+     # Note: you must add this file to the root of your project in order for compose to work.
+     env_file: .docker-compose.env
      image: rethinkdb
      ports:
          - "8080"
          - "28015"
          - "29015"
-     environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com"
 
 controller:
      restart: always
+     # Note: you must add this file to the root of your project in order for compose to work.
+     env_file: .docker-compose.env
      build: .
      dockerfile: Dockerfile
      entrypoint: /bin/bash
@@ -21,6 +23,4 @@ controller:
      volumes_from:
          - media
      ports:
-         - "8888:8080"
-     environment:
-         no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb,myd-vm23183.hpswlabs.adapps.hp.com" 
+         - "8082:8080"
