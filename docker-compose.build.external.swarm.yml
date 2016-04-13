@@ -15,12 +15,10 @@ controller:
      build: .
      dockerfile: Dockerfile
      entrypoint: /bin/bash
-     command: -c "make all && cd controller && ./controller -D server --rethinkdb-addr rethinkdb:28015 -d tcp://myd-vm23183.hpswlabs.adapps.hp.com:3375"
+     command: -c "make all && cd controller && ./controller -D server --rethinkdb-addr rethinkdb:28015 -d $SY_SWARM_URI"
      links:
          - rethinkdb
      volumes:
          - .:/go/src/github.com/shipyard/shipyard
-     volumes_from:
-         - media
      ports:
          - "8082:8080"
