@@ -1,0 +1,47 @@
+rethinkdb:
+    restart: always
+    image: rethinkdb:2.2
+    ports:
+        - "8083:8080"
+        - "8084:28015"
+        - "8085:29015"
+    environment:
+        no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb"
+
+proxy:
+    restart: always
+    image: ehazlett/docker-proxy:latest
+    volumes:
+        - "/var/run/docker.sock:/var/run/docker.sock"
+    ports:
+        - "2375"
+    command: -D
+    environment:
+        no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb"
+
+swarm:
+    restart: always
+    image: swarm:1.1.3
+    command: m --host tcp://0.0.0.0:2375 proxy:2375
+    links:
+        - "proxy:proxy"
+    ports:
+        - "2375"
+    environment:
+        no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb"
+
+controller:
+    restart: always
+    image: controller_sa:latest
+    entrypoint: /bin/bash
+    command: -c "cd controller && ./controller -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
+    links:
+        - rethinkdb
+        - swarm
+    ports:
+        - "8082:8080"
+    environment:
+#        no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdb"
+        no_proxy: "localhost,127.0.0.1,proxy,swarm,media,rethinkdbi,$no_proxy"
+        http_proxy: $http_proxy
+        https_proxy: $https_proxy
