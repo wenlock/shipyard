@@ -35,21 +35,21 @@ func (m DefaultManager) VerifyIfImageExistsLocally(imageToCheck string) bool {
 	return false
 }
 
-func (m DefaultManager) PullImage(imageNameTag, address, username, password string) error {
+func (m DefaultManager) PullImage(pullableImageAndTag, username, password string) error {
 	auth := dockerclient.AuthConfig{username, password, ""}
 
-	fmt.Printf("Image does not exist locally. Pulling image %s ... \n", imageNameTag)
+	fmt.Printf("Image does not exist locally. Pulling image %s ... \n", pullableImageAndTag)
 	ticker := time.NewTicker(time.Second * 15)
 	go func() {
 		for t := range ticker.C {
 			fmt.Print("Time: ", t.UTC())
-			fmt.Printf(" Pulling image: %s. Please be patient while the process finishes ... \n", imageNameTag)
+			fmt.Printf(" Pulling image: %s. Please be patient while the process finishes ... \n", pullableImageAndTag)
 		}
 	}()
-	err := m.client.PullImage(constructPullableImageName(imageNameTag, address), &auth)
+	err := m.client.PullImage(pullableImageAndTag, &auth)
 
 	if err != nil {
-		fmt.Printf("Could not pull image %s ... \n %s \n", imageNameTag, err)
+		fmt.Printf("Could not pull image %s ... \n %s \n", pullableImageAndTag, err)
 		ticker.Stop()
 		return err
 	}

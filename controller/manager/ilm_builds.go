@@ -233,6 +233,7 @@ func (m DefaultManager) executeBuildTask(
 
 	if associatedRegistry != nil {
 		address  = associatedRegistry.Addr
+		imageNameTag = constructPullableImageName(imageNameTag, address)
 		username = associatedRegistry.Username
 		password = associatedRegistry.Password
 	}
@@ -244,7 +245,7 @@ func (m DefaultManager) executeBuildTask(
 	// Check to see if the image exists locally, if not, try to pull it.
 	if !m.VerifyIfImageExistsLocally(imageNameTag) {
 		log.Printf("Image %s not available locally, will try to pull...", imageNameTag)
-		if err := m.PullImage(imageNameTag, address, username, password); err != nil {
+		if err := m.PullImage(imageNameTag, username, password); err != nil {
 			log.Errorf("Error pulling image %s", imageNameTag)
 			return
 		}
