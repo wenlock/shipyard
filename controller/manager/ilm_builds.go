@@ -146,8 +146,8 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 
 	// Start a goroutine that will execute the build non-blocking
 	// TODO: this go routine should be replaced eventually to a call to the provider bridge / engine
-	go func() {
-
+	go func(myBuildID string) {
+		m.UpdateBuildStatus(myBuildID, "running")
 		var wg sync.WaitGroup
 		log.Printf("Processing %d image(s)", len(imagesToBuild))
 		// For each image that we target in the test, try to run a build / verification
@@ -166,7 +166,18 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 		}
 		// Block the outer goroutine until ALL the inner goroutines finish
 		wg.Wait()
-	}()
+		status := "finished_success"
+		result,_ := m.GetResults(projectId)
+		for _, testResult := range result.TestResults {
+			log.Printf("##############TestResult##################%s###########", testResult.SimpleResult.Status)
+			if testResult.SimpleResult.Status == "finished_failed" {
+				status = "finished_failed"
+				m.UpdateBuildStatus(myBuildID, status)
+			}
+		}
+		m.UpdateBuildStatus(myBuildID, status)
+	}(build.ID)
+
 
 	// TODO: all these event types should be refactored as constants
 	eventType = "add-build"
@@ -247,7 +258,6 @@ func (m DefaultManager) executeBuildTask(
 		}
 	}
 
-	m.UpdateBuildStatus(build.ID, "running")
 	existingResult, _ := m.GetResults(project.ID)
 
 	// Once the image is available, try to test it with Clair
@@ -282,7 +292,7 @@ func (m DefaultManager) executeBuildTask(
 		m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
 	}
 
-	m.UpdateBuildStatus(build.ID, finishLabel)
+
 
 	testResult.SimpleResult.Status = finishLabel
 	testResult.EndDate = time.Now()
@@ -356,12 +366,15 @@ func (m DefaultManager) UpdateBuildResults(buildId string, result model.BuildRes
 }
 func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
 	var eventType string
+	log.Printf("Pam Pam!!!!")
+	log.Printf("BuildID %s",buildId)
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
 		return err
 	}
+	build.Status.BuildId = buildId
 	build.Status.Status = status
-
+	fmt.Printf("########Status:%s############", status)
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
 	}
