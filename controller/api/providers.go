@@ -27,7 +27,7 @@ func (a *Api) createProvider(w http.ResponseWriter, r *http.Request) {
 
 	var provider *model.Provider
 	if err := json.NewDecoder(r.Body).Decode(&provider); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err := a.manager.CreateProvider(provider); err != nil {
