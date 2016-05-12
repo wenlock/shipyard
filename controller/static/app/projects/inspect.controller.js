@@ -9,6 +9,10 @@
     function InspectController(resolvedResults, $scope, ProjectService, RegistryService, $stateParams) {
         var vm = this;
 
+        $scope.$on('ngRepeatFinished', function() {
+            $('.ui.sortable.celled.table').tablesort();
+        });
+
         vm.showProjectHistory = showProjectHistory;
 
         vm.results = resolvedResults;
