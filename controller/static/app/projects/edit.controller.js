@@ -5,8 +5,8 @@
         .module('shipyard.projects')
         .controller('EditController', EditController);
 
-    EditController.$inject = ['resolvedProject', '$scope', 'ProjectService', 'RegistryService', '$state'];
-    function EditController(resolvedProject, $scope, ProjectService, RegistryService, $state) {
+    EditController.$inject = ['resolvedProject', '$scope', 'ProjectService', 'RegistryService', '$state', '$timeout'];
+    function EditController(resolvedProject, $scope, ProjectService, RegistryService, $state, $timeout) {
         var vm = this;
 
         vm.project = resolvedProject;
@@ -103,6 +103,7 @@
         vm.cancelCreateSaveImage = cancelCreateSaveImage;
         vm.cancelEditSaveImage = cancelEditSaveImage;
         vm.enableSaveProject = enableSaveProject;
+        vm.runAllTests = runAllTests;
 
         vm.getRegistries();
         vm.getImages(vm.project.id);
@@ -849,6 +850,14 @@
 
         function enableSaveProject() {
             vm.projectIsUpdated = true;
+        }
+
+        function runAllTests() {
+            $timeout(function() {
+                for (var i = 0; i < vm.tests.length; i++) {
+                    angular.element('#' + vm.tests[i].id).triggerHandler('click');
+                }
+            }, 100);
         }
 
     }
