@@ -9,8 +9,6 @@ services:
       - "8083:8080"
       - "8084:28015"
       - "8085:29015"
-    networks:
-      - sy_network
 
   proxy:
     env_file: .env
@@ -21,8 +19,6 @@ services:
     ports:
       - "2375"
     command: -D
-    networks:
-      - sy_network
 
   swarm:
     env_file: .env
@@ -31,8 +27,6 @@ services:
     command: m --host tcp://0.0.0.0:2375 proxy:2375
     ports:
       - "2375"
-    networks:
-      - sy_network
 
   controller:
     env_file: .env
@@ -51,8 +45,6 @@ services:
       - "9279"
     depends_on:
       - rethinkdb
-    networks:
-      - sy_network
 
   postgres:
     hostname: postgres
@@ -64,8 +56,6 @@ services:
       - /tmp/postgres:/var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
-    networks:
-      - sy_network
 
   clair:
     env_file: .env
@@ -81,8 +71,3 @@ services:
     depends_on:
       - postgres
       - controller
-    networks:
-      - sy_network
-
-networks:
-  sy_network:
