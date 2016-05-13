@@ -5,7 +5,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	r "github.com/dancannon/gorethink"
-	c "github.com/shipyard/shipyard/checker"
+	//c "github.com/shipyard/shipyard/checker"
 	apiClient "github.com/shipyard/shipyard/client"
 	"github.com/shipyard/shipyard/model"
 	"sync"
@@ -187,14 +187,14 @@ func (m DefaultManager) executeBuildTask(
 	// TODO: these should probably just be views of the BuildResults
 	// TODO: need to set the author to the real user
 	// TODO: use model.NewResult() instead
-	result := &model.Result{
-		BuildId:     build.ID,
-		Author:      "author",
-		ProjectId:   project.ID,
-		Description: project.Description,
-		Updater:     "author",
-		CreateDate:  time.Now(),
-	}
+	//result := &model.Result{
+	//	BuildId:     build.ID,
+	//	Author:      "author",
+	//	ProjectId:   project.ID,
+	//	Description: project.Description,
+	//	Updater:     "author",
+	//	CreateDate:  time.Now(),
+	//}
 
 	// TODO: use model.NewTestResult() instead
 	testResult := model.TestResult{}
@@ -232,7 +232,8 @@ func (m DefaultManager) executeBuildTask(
 	}
 
 	// Get all local images
-	localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
+	localImages, _ := apiClient.GetLocalImages(m.DockerClient().URL.String())
+	//localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
 
 	// TODO: Refactor this into its own func
 	// get the docker image id and append it to the test results
@@ -248,56 +249,56 @@ func (m DefaultManager) executeBuildTask(
 	}
 
 	m.UpdateBuildStatus(build.ID, "running")
-	existingResult, _ := m.GetResults(project.ID)
+	//existingResult, _ := m.GetResults(project.ID)
 
-	// Once the image is available, try to test it with Clair
-	log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
-	resultsSlice, isSafe, err := c.CheckImage(image)
-
-	targetArtifact := model.NewTargetArtifact(
-		image.ID,
-		model.TargetArtifactImageType,
-		image,
-	)
-	buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
-	buildResult.TimeStamp = time.Now()
-
-	m.UpdateBuildResults(build.ID, *buildResult)
-	finishLabel := "finished_failed"
-
-	appliedTag := ""
-	if isSafe && err == nil {
-		// if we don't get an error and we get the isSafe flag == true
-		// we mark the test for the image as successful
-		finishLabel = "finished_success"
-		// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
-		appliedTag = test.Tagging.OnSuccess
-		log.Infof("Image %s is safe! :)", image.PullableName())
-	} else {
-		// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
-		appliedTag = test.Tagging.OnFailure
-		log.Errorf("Image %s is NOT safe :(", image.PullableName())
-	}
-	if appliedTag != "" {
-		m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
-	}
-
-	m.UpdateBuildStatus(build.ID, finishLabel)
-
-	testResult.SimpleResult.Status = finishLabel
-	testResult.EndDate = time.Now()
-	testResult.Blocker = false
-	testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
-	result.TestResults = append(result.TestResults, &testResult)
-	result.LastUpdate = time.Now()
-	result.LastTagApplied = appliedTag
-
-	if existingResult != nil {
-		m.UpdateResult(project.ID, result)
-
-	} else {
-		m.CreateResult(project.ID, result)
-	}
+	//// Once the image is available, try to test it with Clair
+	//log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
+	//resultsSlice, isSafe, err := c.CheckImage(image)
+	//
+	//targetArtifact := model.NewTargetArtifact(
+	//	image.ID,
+	//	model.TargetArtifactImageType,
+	//	image,
+	//)
+	//buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
+	//buildResult.TimeStamp = time.Now()
+	//
+	//m.UpdateBuildResults(build.ID, *buildResult)
+	//finishLabel := "finished_failed"
+	//
+	//appliedTag := ""
+	//if isSafe && err == nil {
+	//	// if we don't get an error and we get the isSafe flag == true
+	//	// we mark the test for the image as successful
+	//	finishLabel = "finished_success"
+	//	// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
+	//	appliedTag = test.Tagging.OnSuccess
+	//	log.Infof("Image %s is safe! :)", image.PullableName())
+	//} else {
+	//	// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
+	//	appliedTag = test.Tagging.OnFailure
+	//	log.Errorf("Image %s is NOT safe :(", image.PullableName())
+	//}
+	//if appliedTag != "" {
+	//	m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
+	//}
+	//
+	//m.UpdateBuildStatus(build.ID, finishLabel)
+	//
+	//testResult.SimpleResult.Status = finishLabel
+	//testResult.EndDate = time.Now()
+	//testResult.Blocker = false
+	//testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
+	//result.TestResults = append(result.TestResults, &testResult)
+	//result.LastUpdate = time.Now()
+	//result.LastTagApplied = appliedTag
+	//
+	//if existingResult != nil {
+	//	m.UpdateResult(project.ID, result)
+	//
+	//} else {
+	//	m.CreateResult(project.ID, result)
+	//}
 
 }
 
