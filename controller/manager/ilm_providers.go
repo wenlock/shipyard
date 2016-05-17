@@ -77,11 +77,11 @@ func (m DefaultManager) UpdateProvider(provider *model.Provider) error {
 
 	if prov != nil {
 		updates := map[string]interface{}{
-			"name":              provider.Name,
-			"availableJobTypes": provider.AvailableJobTypes,
-			"config":            provider.Config,
-			"url":               provider.Url,
-			"providerJobs":      provider.ProviderJobs,
+			"name":         provider.Name,
+			"config":       provider.Config,
+			"url":          provider.Url,
+			"providerJobs": provider.ProviderJobs,
+			//"availableJobTypes": provider.AvailableJobTypes,
 		}
 
 		if _, err := r.Table(tblNameProviders).Filter(map[string]string{"id": provider.ID}).Update(updates).RunWrite(m.session); err != nil {

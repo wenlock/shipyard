@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
-	"go/types"
 	"net/http"
 	"time"
 )
 
 type Provider struct {
-	ID                string         `json:"id,omitempty" gorethink:"id,omitempty"`
-	Name              string         `json:"name" gorethink:"name"`
-	AvailableJobTypes types.Array    `json:"availableJobTypes" gorethink:"availableJobTypes"`
-	Config            types.Object   `json:"config" gorethink:"config"`
-	Url               string         `json:"url" gorethink:"url"`
-	ProviderJobs      []*ProviderJob `json:"providerJobs" gorethink:"providerJobs"`
-	Health            Health         `json:"health" gorethink:"health"`
-	client            *http.Client
+	ID           string         `json:"id,omitempty" gorethink:"id,omitempty"`
+	Name         string         `json:"name" gorethink:"name"`
+	Type         string         `json:"type" gorethink:"type"`
+	Config       interface{}    `json:"config" gorethink:"config"`
+	Url          string         `json:"url" gorethink:"url"`
+	ProviderJobs []*ProviderJob `json:"providerJobs" gorethink:"providerJobs"`
+	Health       Health         `json:"health" gorethink:"health"`
+	client       *http.Client
+	//AvailableJobTypes types.Array    `json:"availableJobTypes" gorethink:"availableJobTypes"`
 }
 
 func (p *Provider) SendBuild(providerBuild *ProviderBuild) {
@@ -74,15 +74,21 @@ func (p *Provider) SendBuild(providerBuild *ProviderBuild) {
 	// TODO: make this return something useful to check for errors.
 }
 
-func NewProvider(name string, availableJobTypes types.Array, config types.Object, url string, providerJobs []*ProviderJob) *Provider {
+func NewProvider(
+	name string,
+	//availableJobTypes types.Array,
+	config interface{},
+	url string,
+	providerJobs []*ProviderJob,
+) *Provider {
 
 	return &Provider{
-		Name:              name,
-		AvailableJobTypes: availableJobTypes,
-		Config:            config,
-		Url:               url,
-		ProviderJobs:      providerJobs,
-		client:            &http.Client{},
+		Name: name,
+		//AvailableJobTypes: availableJobTypes,
+		Config:       config,
+		Url:          url,
+		ProviderJobs: providerJobs,
+		client:       &http.Client{},
 	}
 }
 
