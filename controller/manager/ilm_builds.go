@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+type executeBuildTasksResults struct {
+	buildStatus string
+	buildResult *model.BuildResult
+}
+
 //methods related to the Build structure
 func (m DefaultManager) GetBuilds(projectId string, testId string) ([]*model.Build, error) {
 	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"projectId": projectId, "testId": testId}).Run(m.session)
@@ -29,7 +34,9 @@ func (m DefaultManager) GetBuild(projectId string, testId string, buildId string
 }
 
 func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
+	log.Info("looking for build in db")
 	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Run(m.session)
+	log.Info("done looking in db")
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +47,7 @@ func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
 	if err := res.One(&build); err != nil {
 		return nil, err
 	}
+	log.Info("return build")
 	return build, nil
 }
 
@@ -160,21 +168,25 @@ func (m DefaultManager) executeBuildTasks(
 	build *model.Build,
 	imagesToBuild []*model.Image,
 ) {
-	var taskChannels []<-chan string
+	var taskReceivingChannels []<-chan executeBuildTasksResults
 	// For each image that we target in the test, try to run a build / verification
-	// TODO: Add "running", "start", etc... as static constants somewhere
+	// TODO: Add "running", "start", etc... as constants somewhere
 	m.UpdateBuildStatus(build.ID, "running")
 	for _, image := range imagesToBuild {
 		log.Printf("Processing image=%s", image.PullableName())
 		channel := m.executeBuildTask(*project, *test, *build, *image)
-		taskChannels = append(taskChannels, channel)
+		taskReceivingChannels = append(taskReceivingChannels, channel)
 	}
-	// Fetch the build statuses from the build tasks
+
 	var statuses []string
-	for _, taskChannel := range taskChannels {
-		status := <-taskChannel
-		statuses = append(statuses, status)
+	for _, taskReceivingChannel := range taskReceivingChannels {
+		results := <-taskReceivingChannel
+		// Fetch the build statuses and store them for later use
+		statuses = append(statuses, results.buildStatus)
+		// Update build results
+		m.UpdateBuildResults(build.ID, results.buildResult)
 	}
+	log.Info("all channels received")
 	// Check to see if build was successful by comparing the statuses for all build tasks
 	buildStatus := "finished_success"
 	for _, status := range statuses {
@@ -184,18 +196,21 @@ func (m DefaultManager) executeBuildTasks(
 		}
 	}
 	// Update status for our build model
-	m.UpdateBuildStatus(build.ID, buildStatus)
+	if err := m.UpdateBuildStatus(build.ID, buildStatus); err != nil {
+		log.Error(err)
+	}
 }
 
 // Generator that executes a BuilTask in the background as part of a wait group.
 // TODO: We should probably remove the `name` param as we already have the corresponding image object
+// TODO: Remove all *updates* from this method as they may cause the go routines to share address space
 func (m DefaultManager) executeBuildTask(
 	project model.Project,
 	test model.Test,
 	build model.Build,
 	image model.Image,
-) <-chan string {
-	channel := make(chan string)
+) <-chan executeBuildTasksResults {
+	channel := make(chan executeBuildTasksResults)
 
 	go func() {
 		// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
@@ -220,23 +235,10 @@ func (m DefaultManager) executeBuildTask(
 		testResult.ImageName = image.PullableName()
 		testResult.BuildId = build.ID
 
-		username := ""
-		password := ""
-
-		if image.RegistryId != "" {
-			registry, err := m.Registry(image.RegistryId)
-			if err != nil {
-				log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
-			} else {
-				username = registry.Username
-				password = registry.Password
-			}
-		}
-
 		// Check to see if the image exists locally, if not, try to pull it.
-		if !m.VerifyIfImageExistsLocally(image.PullableName()) {
+		if !m.VerifyIfImageExistsLocally(image) {
 			log.Printf("Image %s not available locally, will try to pull...", image.PullableName())
-			if err := m.PullImage(image.PullableName(), username, password); err != nil {
+			if err := m.PullImage(image); err != nil {
 				log.Errorf("Error pulling image %s", image.PullableName())
 				return
 			}
@@ -272,7 +274,6 @@ func (m DefaultManager) executeBuildTask(
 		buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
 		buildResult.TimeStamp = time.Now()
 
-		m.UpdateBuildResults(build.ID, *buildResult)
 		finishLabel := "finished_failed"
 
 		appliedTag := ""
@@ -303,12 +304,16 @@ func (m DefaultManager) executeBuildTask(
 
 		if existingResult != nil {
 			m.UpdateResult(project.ID, result)
-
 		} else {
 			m.CreateResult(project.ID, result)
 		}
 
-		channel <- finishLabel
+		log.Info("sending channel")
+		channel <- executeBuildTasksResults{
+			buildStatus: finishLabel,
+			buildResult: buildResult,
+		}
+		log.Info("sent channel")
 	}()
 
 	return channel
@@ -349,13 +354,13 @@ func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId str
 
 }
 
-func (m DefaultManager) UpdateBuildResults(buildId string, result model.BuildResult) error {
+func (m DefaultManager) UpdateBuildResults(buildId string, result *model.BuildResult) error {
 	var eventType string
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
 		return err
 	}
-	build.Results = append(build.Results, &result)
+	build.Results = append(build.Results, result)
 
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
@@ -368,6 +373,7 @@ func (m DefaultManager) UpdateBuildResults(buildId string, result model.BuildRes
 	return nil
 }
 func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
+	log.Info("updating build status")
 	var eventType string
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
@@ -375,13 +381,16 @@ func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
 	}
 	build.Status.Status = status
 
+	log.Info("fetching from db")
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
 	}
+	log.Info("fetched from db")
 
 	eventType = "update-build-status"
 
 	m.logEvent(eventType, fmt.Sprintf("id=%s", buildId), []string{"security"})
+	log.Info("finished updating status")
 
 	return nil
 }

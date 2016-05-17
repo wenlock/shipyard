@@ -113,8 +113,8 @@ type (
 		DeleteProject(project *model.Project) error
 		DeleteAllProjects() error
 
-		VerifyIfImageExistsLocally(imageToCheck string) bool
-		PullImage(pullableImageName, username, password string) error
+		VerifyIfImageExistsLocally(image model.Image) bool
+		PullImage(image model.Image) error
 
 		GetImages(projectId string) ([]*model.Image, error)
 		GetImage(projectId, imageId string) (*model.Image, error)
@@ -145,7 +145,7 @@ type (
 		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
 
 		CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error)
-		UpdateBuildResults(buildId string, result model.BuildResult) error
+		UpdateBuildResults(buildId string, result *model.BuildResult) error
 		UpdateBuildStatus(buildId string, status string) error
 		UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error
 		DeleteBuild(projectId string, testId string, buildId string) error
