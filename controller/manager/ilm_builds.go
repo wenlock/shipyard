@@ -144,28 +144,65 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 		return ""
 	}()
 
+	// TODO: extract the provider that matches this Test / Build
+	providers, err := m.GetProviders()
+
+	index := len(providers)
+	for i, prov := range providers {
+		// TODO: this is hardcoded, please change
+		if prov.Url == "http://providerbridge:1323" {
+			index = i
+			break
+		}
+	}
+
+	if index == len(providers) {
+		return build.ID, errors.New("Could not find the selected Provider for this Test / Build.")
+	}
+
+	provider := providers[index]
+
+	// TODO: extract provider job from Build / Test
+
+	index = len(provider.ProviderJobs)
+	for i, job := range provider.ProviderJobs {
+		if job.Url == "http://providerbridge:1323/jobs" {
+			index = i
+			break
+		}
+	}
+
+	if index == len(provider.ProviderJobs) {
+		return build.ID, errors.New("Could not find the selected provider job for this Test / Build.")
+	}
+
+	providerJob := provider.ProviderJobs[index]
+
 	// Start a goroutine that will execute the build non-blocking
 	// TODO: this go routine should be replaced eventually to a call to the provider bridge / engine
 	go func() {
 
-		var wg sync.WaitGroup
+		tasks := []*model.ProviderTask{}
 		log.Printf("Processing %d image(s)", len(imagesToBuild))
 		// For each image that we target in the test, try to run a build / verification
 		for _, image := range imagesToBuild {
 			log.Printf("Processing image=%s", image.PullableName())
-			wg.Add(1)
 
 			// Run the verification concurrently for each image and then block to wait for all to finish.
-			go m.executeBuildTask(
+
+			tasks = append(tasks, model.NewProviderTask(
 				project,
 				test,
 				build,
 				image,
-				&wg,
-			)
+				nil,
+			))
 		}
+
+		providerBuild := model.NewProviderBuild(providerJob, tasks)
+
+		provider.SendBuild(providerBuild)
 		// Block the outer goroutine until ALL the inner goroutines finish
-		wg.Wait()
 	}()
 
 	// TODO: all these event types should be refactored as constants
