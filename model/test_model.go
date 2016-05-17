@@ -90,31 +90,37 @@ type Test struct {
 	Description      string            `json:"description" gorethink:"description"`
 	Targets          []*TargetArtifact `json:"targets" gorethink:"targets"`
 	SelectedTestType string            `json:"selectedTestType" gorethink:"selectedTestType"`
-	Provider         TestProvider      `json:"provider" gorethink:"provider"`
+	Provider         *Provider         `json:"provider" gorethink:"provider"`
+	ProviderJob      *ProviderJob      `json:"providerJob" gorethink:"providerJob"`
 	Tagging          Tagging           `json:"tagging" gorethink:"tagging"`
 	FromTag          string            `json:"fromTag" gorethink:"fromTag"`
 	Parameters       []*Parameter      `json:"parameters" gorethink:"parameters"`
 	ProjectId        string            `json:"projectId" gorethink:"projectId"`
 }
-type TestProvider struct {
-	ProviderType string `json:"providerType" gorethink:"providerType"`
-	ProviderName string `json:"providerName" gorethink:"providerName"`
-	ProviderTest string `json:"ProviderTest" gorethink:"ProviderTest"`
-}
+
+//type TestProvider struct {
+//	ProviderType string `json:"providerType" gorethink:"providerType"`
+//	ProviderName string `json:"providerName" gorethink:"providerName"`
+//	ProviderTest string `json:"ProviderTest" gorethink:"ProviderTest"`
+//}
+//
+//type TargetProvider struct {
+//	ProviderId string
+//}
+
 type Tagging struct {
 	OnSuccess string `json:"onSuccess" gorethink:"onSuccess"`
 	OnFailure string `json:"onFailure" gorethink:"onFailure"`
 }
 
-func (t *Test) NewTest(
+func NewTest(
 	name string,
 	description string,
 	targets []*TargetArtifact,
 	selectedTestType string,
 	projectId string,
-	providerType string,
-	providerName string,
-	providerTest string,
+	provider *Provider,
+	providerjob *ProviderJob,
 	parameters []*Parameter,
 	successTag string,
 	failTag string,
@@ -126,9 +132,9 @@ func (t *Test) NewTest(
 	test.Description = description
 	test.Targets = targets
 	test.SelectedTestType = selectedTestType
-	test.Provider.ProviderType = providerType
-	test.Provider.ProviderName = providerName
-	test.Provider.ProviderTest = providerTest
+	//test.Provider.ProviderType = providerType
+	//test.Provider.ProviderName = providerName
+	//test.Provider.ProviderTest = providerTest
 	test.Tagging.OnSuccess = successTag
 	test.Tagging.OnFailure = failTag
 	test.FromTag = fromTag

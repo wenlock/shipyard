@@ -96,9 +96,17 @@
                 
                 return true;
             },
-            getProviders: function() {
+            getProviders: function(filter) {
+                var params = {};
+                if (filter) {
+                     params = {
+                         params: {
+                             type: filter
+                         }
+                     };
+                }
                 var promise = $http
-                    .get('/api/providers')
+                    .get('/api/providers', params)
                     .then(function(response) {
                         return response.data;
                     });

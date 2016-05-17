@@ -44,8 +44,13 @@
         vm.shipyardImages = [];
         vm.publicRegistryTags = [];
 
+        // To be used by provider UI widgets
         vm.providers = [];
         vm.providerTests = [];
+        vm.providerTypes = [];
+        vm.chosenProviderType = "";
+        vm.chosenProvider = null;
+        vm.chosenProviderJob = null;
 
         vm.parameters = [];
 
@@ -103,6 +108,9 @@
         vm.cancelCreateSaveImage = cancelCreateSaveImage;
         vm.cancelEditSaveImage = cancelEditSaveImage;
         vm.enableSaveProject = enableSaveProject;
+
+        vm.handlePickProviderType = handlePickProviderType;
+        vm.handlePickProvider = handlePickProvider;
 
         vm.getRegistries();
         vm.getImages(vm.project.id);
@@ -331,6 +339,21 @@
             });
             vm.createTest.selectizeItems = imagesSelectize.map(function(x) { return {item: x};});
             vm.getParameters();
+
+            ProjectService.getProviders()
+                .then(function(data) {
+                    console.log(data);
+                    vm.providers = data;
+                    vm.providerTypes = []
+                    console.log("Received provider list",vm.providers)
+                    angular.forEach(vm.providers, function(provider){
+                        vm.providerTypes.push(provider.type)
+                    });
+                    console.log("Provider types from API", vm.providerTypes)
+                }, function(data) {
+                    vm.error = data;
+                });
+
             $('#edit-project-test-create-modal-'+vm.randomCreateTestId)
                 .modal({
                     onHidden: function() {
@@ -350,6 +373,10 @@
                 .modal('show');
         }
 
+        function handleSelectImage(data) {
+            vm.setTargetsCreateTest(data)
+        }
+
         // TODO: Handle setting target for editTestModal
         function setTargetsCreateTest(data) {
             // If data is empty, skip setTargets
@@ -366,6 +393,7 @@
                     // TODO: Shouldn't the "else" case issue an error/warning?
                 });
             });
+            vm.buttonStyle = "enabled"
         }
 
         function setTargetsEditTest(data) {
@@ -444,6 +472,34 @@
             $('.ui.search.fluid.dropdown.registry').dropdown('restore defaults');
             $('.ui.search.fluid.dropdown.image').dropdown('restore defaults');
             $('.ui.search.fluid.dropdown.tag').dropdown('restore defaults');
+        }
+
+        function handlePickProviderType() {
+            console.log("handlePickProviderType()");
+            vm.resetTestValues()
+            console.log("Chose the following provider type",vm.chosenProviderType);
+            console.log("Getting all providers for that type from API");
+            // Pass the provider type as a potential filter
+            // TODO: filter needs to be implemented in the backend API
+            ProjectService.getProviders(vm.chosenProviderType)
+                .then(function(data) {
+                    vm.providers = data;
+                    console.log("Received provider list",vm.providers)
+                }, function(data) {
+                    vm.error = data;
+                });
+        }
+
+        function handlePickProvider() {
+            console.log("handlePickProvider()", vm.chosenProvider);
+
+            vm.providerJobs = vm.chosenProvider.providerJobs
+
+            console.log("Provider job list ",vm.providerJobs)
+            //vm.createTest.provider.ProviderTest='';
+            //vm.getJobs(vm.createTest.provider.providerName);
+            //vm.checkProviderTest(vm.createTest.provider.providerName,vm.createTest.provider.ProviderTest)
+
         }
 
         function resetTestValues() {

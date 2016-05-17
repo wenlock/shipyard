@@ -402,35 +402,32 @@
                                 <div class="fields">
                                     <div class="five wide field">
                                         <label>Test Provider</label>
-                                        <select name="testProvider" ng-model="vm.createTest.provider.providerType" class="ui search fluid dropdown testProvider" ng-change="vm.resetTestValues()">
+                                        <select name="testProvider" ng-model="vm.chosenProviderType" class="ui search fluid dropdown testProvider" ng-change="vm.handlePickProviderType()">
                                             <option value="">Select</option>
-                                            <option value="Predefined Provider">Predefined Provider</option>
-                                            <option value="Clair [Internal]">Clair [Internal]</option>
+                                            <option ng-repeat="providerType in vm.providerTypes" value="{{providerType}}">{{providerType}}</option>
                                         </select>
                                     </div>
 
-                                    <div class="five wide field" ng-show="vm.createTest.provider.providerType === 'Predefined Provider'">
+                                    <div class="five wide field" ng-show="vm.chosenProviderType">
                                         <label>Provider Name</label>
-                                        <select name="providerName" ng-model="vm.createTest.provider.providerName" class="ui search fluid dropdown providerName" ng-change="vm.createTest.provider.ProviderTest='';vm.getJobs(vm.createTest.provider.providerName);vm.checkProviderTest(vm.createTest.provider.providerName,vm.createTest.provider.ProviderTest)">
+                                        <select name="providerName" ng-options="provider as provider.name for provider in vm.providers" ng-model="vm.chosenProvider" class="ui search fluid dropdown providerName" ng-change="vm.handlePickProvider()">
                                             <option value="">Name</option>
-                                            <option ng-repeat="a in vm.providers" data-value="{{a.name}}">{{a.name}}</option>
                                         </select>
                                     </div>
 
-                                    <div class="five wide field" ng-show="vm.createTest.provider.providerType === 'Predefined Provider'">
+                                    <div class="five wide field" ng-show="vm.chosenProvider">
                                         <label>Test</label>
-                                        <select name="test" ng-model="vm.createTest.provider.ProviderTest" class="ui search fluid dropdown providerTest" ng-change="vm.checkProviderTest(vm.createTest.provider.providerName,vm.createTest.provider.ProviderTest)">
+                                        <select name="test" ng-model="vm.chosenProviderJob" ng-options="providerJob as providerJob.name for providerJob in vm.providerJobs" class="ui search fluid dropdown providerTest" ng-change="vm.handlePickProviderJob()">
                                             <option value="">Test</option>
-                                            <option ng-repeat="a in vm.providerTests" data-value="{{a.name}}">{{a.name}}</option>
                                         </select>
                                     </div>
 
-                                    <div class="eleven wide field" ng-show="vm.createTest.provider.providerType === 'Clair [Internal]'">
+                                    <div class="eleven wide field" ng-show="vm.chosenProviderJob">
                                         <label>Select Images to Test</label>
                                         <selectize config='vm.createTest.selectizeConfig' options='vm.createTest.selectizeItems' ng-model="vm.createTest.selectizeData" ng-change="vm.setTargetsCreateTest(vm.createTest.selectizeData)"></selectize>
                                     </div>
 
-                                    <div class="one wide field" ng-show="vm.createTest.provider.providerType === 'Predefined Provider'">
+                                    <div class="one wide field" ng-show="">
                                         <label>&nbsp;</label>
                                         <button class="right floated ui icon button {{vm.buttonStyle}}">
                                             <i class="check icon"></i>
