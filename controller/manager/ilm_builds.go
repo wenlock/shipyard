@@ -8,7 +8,6 @@ import (
 	c "github.com/shipyard/shipyard/checker"
 	apiClient "github.com/shipyard/shipyard/client"
 	"github.com/shipyard/shipyard/model"
-	"sync"
 	"time"
 )
 
@@ -144,29 +143,10 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 		return ""
 	}()
 
-	// Start a goroutine that will execute the build non-blocking
-	// TODO: this go routine should be replaced eventually to a call to the provider bridge / engine
-	go func() {
+	log.Printf("Processing %d image(s)", len(imagesToBuild))
 
-		var wg sync.WaitGroup
-		log.Printf("Processing %d image(s)", len(imagesToBuild))
-		// For each image that we target in the test, try to run a build / verification
-		for _, image := range imagesToBuild {
-			log.Printf("Processing image=%s", image.PullableName())
-			wg.Add(1)
-
-			// Run the verification concurrently for each image and then block to wait for all to finish.
-			go m.executeBuildTask(
-				project,
-				test,
-				build,
-				image,
-				&wg,
-			)
-		}
-		// Block the outer goroutine until ALL the inner goroutines finish
-		wg.Wait()
-	}()
+	// Run build for each image (each image represents a build task)
+	go m.executeBuildTasks(project, test, build, imagesToBuild)
 
 	// TODO: all these event types should be refactored as constants
 	eventType = "add-build"
@@ -174,131 +154,164 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 	return build.ID, nil
 }
 
-// Executes a BuilTask in the background as part of a wait group.
-// TODO: We should probably remove the `name` param as we already have the corresponding image object
-func (m DefaultManager) executeBuildTask(
+func (m DefaultManager) executeBuildTasks(
 	project *model.Project,
 	test *model.Test,
 	build *model.Build,
-	image *model.Image,
-	wg *sync.WaitGroup,
+	imagesToBuild []*model.Image,
 ) {
-	// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
-	// TODO: these should probably just be views of the BuildResults
-	// TODO: need to set the author to the real user
-	// TODO: use model.NewResult() instead
-	result := &model.Result{
-		BuildId:     build.ID,
-		Author:      "author",
-		ProjectId:   project.ID,
-		Description: project.Description,
-		Updater:     "author",
-		CreateDate:  time.Now(),
+	var taskChannels []<-chan string
+	// For each image that we target in the test, try to run a build / verification
+	// TODO: Add "running", "start", etc... as static constants somewhere
+	m.UpdateBuildStatus(build.ID, "running")
+	for _, image := range imagesToBuild {
+		log.Printf("Processing image=%s", image.PullableName())
+		channel := m.executeBuildTask(*project, *test, *build, *image)
+		taskChannels = append(taskChannels, channel)
 	}
-
-	// TODO: use model.NewTestResult() instead
-	testResult := model.TestResult{}
-	testResult.Date = time.Now()
-	testResult.TestId = test.ID
-	testResult.BuildId = build.ID
-	testResult.TestName = test.Name
-	testResult.ImageName = image.PullableName()
-	testResult.BuildId = build.ID
-
-	username := ""
-	password := ""
-
-	if image.RegistryId != "" {
-		registry, err := m.Registry(image.RegistryId)
-		if err != nil {
-			log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
-		} else {
-			username = registry.Username
-			password = registry.Password
+	// Fetch the build statuses from the build tasks
+	var statuses []string
+	for _, taskChannel := range taskChannels {
+		status := <-taskChannel
+		statuses = append(statuses, status)
+	}
+	// Check to see if build was successful by comparing the statuses for all build tasks
+	buildStatus := "finished_success"
+	for _, status := range statuses {
+		if status != "finished_success" {
+			buildStatus = "finished_failed"
+			break
 		}
 	}
+	// Update status for our build model
+	m.UpdateBuildStatus(build.ID, buildStatus)
+}
 
-	// When the goroutine finishes, mark this wait group item as done.
-	// TODO: perhaps do this only if wg != nil?
-	defer wg.Done()
+// Generator that executes a BuilTask in the background as part of a wait group.
+// TODO: We should probably remove the `name` param as we already have the corresponding image object
+func (m DefaultManager) executeBuildTask(
+	project model.Project,
+	test model.Test,
+	build model.Build,
+	image model.Image,
+) <-chan string {
+	channel := make(chan string)
 
-	// Check to see if the image exists locally, if not, try to pull it.
-	if !m.VerifyIfImageExistsLocally(image.PullableName()) {
-		log.Printf("Image %s not available locally, will try to pull...", image.PullableName())
-		if err := m.PullImage(image.PullableName(), username, password); err != nil {
-			log.Errorf("Error pulling image %s", image.PullableName())
-			return
+	go func() {
+		// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
+		// TODO: these should probably just be views of the BuildResults
+		// TODO: need to set the author to the real user
+		// TODO: use model.NewResult() instead
+		result := &model.Result{
+			BuildId:     build.ID,
+			Author:      "author",
+			ProjectId:   project.ID,
+			Description: project.Description,
+			Updater:     "author",
+			CreateDate:  time.Now(),
 		}
-	}
 
-	// Get all local images
-	localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
+		// TODO: use model.NewTestResult() instead
+		testResult := model.TestResult{}
+		testResult.Date = time.Now()
+		testResult.TestId = test.ID
+		testResult.BuildId = build.ID
+		testResult.TestName = test.Name
+		testResult.ImageName = image.PullableName()
+		testResult.BuildId = build.ID
 
-	// TODO: Refactor this into its own func
-	// get the docker image id and append it to the test results
-	for _, localImage := range localImages {
-		imageRepoTags := localImage.RepoTags
-		for _, imageRepoTag := range imageRepoTags {
-			if imageRepoTag == image.PullableName() {
-				//image.DockerImageId = localImage.ID
-				testResult.DockerImageId = localImage.ID
-				image.ImageId = localImage.ID
+		username := ""
+		password := ""
+
+		if image.RegistryId != "" {
+			registry, err := m.Registry(image.RegistryId)
+			if err != nil {
+				log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
+			} else {
+				username = registry.Username
+				password = registry.Password
 			}
 		}
-	}
 
-	m.UpdateBuildStatus(build.ID, "running")
-	existingResult, _ := m.GetResults(project.ID)
+		// Check to see if the image exists locally, if not, try to pull it.
+		if !m.VerifyIfImageExistsLocally(image.PullableName()) {
+			log.Printf("Image %s not available locally, will try to pull...", image.PullableName())
+			if err := m.PullImage(image.PullableName(), username, password); err != nil {
+				log.Errorf("Error pulling image %s", image.PullableName())
+				return
+			}
+		}
 
-	// Once the image is available, try to test it with Clair
-	log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
-	resultsSlice, isSafe, err := c.CheckImage(image)
+		// Get all local images
+		localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
 
-	targetArtifact := model.NewTargetArtifact(
-		image.ID,
-		model.TargetArtifactImageType,
-		image,
-	)
-	buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
-	buildResult.TimeStamp = time.Now()
+		// TODO: Refactor this into its own func
+		// get the docker image id and append it to the test results
+		for _, localImage := range localImages {
+			imageRepoTags := localImage.RepoTags
+			for _, imageRepoTag := range imageRepoTags {
+				if imageRepoTag == image.PullableName() {
+					//image.DockerImageId = localImage.ID
+					testResult.DockerImageId = localImage.ID
+					image.ImageId = localImage.ID
+				}
+			}
+		}
 
-	m.UpdateBuildResults(build.ID, *buildResult)
-	finishLabel := "finished_failed"
+		existingResult, _ := m.GetResults(project.ID)
 
-	appliedTag := ""
-	if isSafe && err == nil {
-		// if we don't get an error and we get the isSafe flag == true
-		// we mark the test for the image as successful
-		finishLabel = "finished_success"
-		// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
-		appliedTag = test.Tagging.OnSuccess
-		log.Infof("Image %s is safe! :)", image.PullableName())
-	} else {
-		// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
-		appliedTag = test.Tagging.OnFailure
-		log.Errorf("Image %s is NOT safe :(", image.PullableName())
-	}
-	if appliedTag != "" {
-		m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
-	}
+		// Once the image is available, try to test it with Clair
+		log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
+		resultsSlice, isSafe, err := c.CheckImage(&image)
 
-	m.UpdateBuildStatus(build.ID, finishLabel)
+		targetArtifact := model.NewTargetArtifact(
+			image.ID,
+			model.TargetArtifactImageType,
+			image,
+		)
+		buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
+		buildResult.TimeStamp = time.Now()
 
-	testResult.SimpleResult.Status = finishLabel
-	testResult.EndDate = time.Now()
-	testResult.Blocker = false
-	testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
-	result.TestResults = append(result.TestResults, &testResult)
-	result.LastUpdate = time.Now()
-	result.LastTagApplied = appliedTag
+		m.UpdateBuildResults(build.ID, *buildResult)
+		finishLabel := "finished_failed"
 
-	if existingResult != nil {
-		m.UpdateResult(project.ID, result)
+		appliedTag := ""
+		if isSafe && err == nil {
+			// if we don't get an error and we get the isSafe flag == true
+			// we mark the test for the image as successful
+			finishLabel = "finished_success"
+			// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
+			appliedTag = test.Tagging.OnSuccess
+			log.Infof("Image %s is safe! :)", image.PullableName())
+		} else {
+			// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
+			appliedTag = test.Tagging.OnFailure
+			log.Errorf("Image %s is NOT safe :(", image.PullableName())
+		}
+		if appliedTag != "" {
+			m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
+		}
 
-	} else {
-		m.CreateResult(project.ID, result)
-	}
 
+		testResult.SimpleResult.Status = finishLabel
+		testResult.EndDate = time.Now()
+		testResult.Blocker = false
+		testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
+		result.TestResults = append(result.TestResults, &testResult)
+		result.LastUpdate = time.Now()
+		result.LastTagApplied = appliedTag
+
+		if existingResult != nil {
+			m.UpdateResult(project.ID, result)
+
+		} else {
+			m.CreateResult(project.ID, result)
+		}
+
+		channel <- finishLabel
+	}()
+
+	return channel
 }
 
 func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error {
