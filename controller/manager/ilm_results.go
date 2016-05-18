@@ -94,7 +94,7 @@ func (m DefaultManager) UpdateResult(projectId string, inputResult *model.Result
 	return nil
 }
 func (m DefaultManager) DeleteResult(projectId string, resultId string) error {
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Delete().Run(m.session
+	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Delete().Run(m.session)
 	defer res.Close()
 	if err != nil {
 		return err
