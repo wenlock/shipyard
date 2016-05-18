@@ -10,6 +10,7 @@ import (
 func (m DefaultManager) GetProviders() ([]*model.Provider, error) {
 
 	res, err := r.Table(tblNameProviders).OrderBy(r.Asc("name")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -22,6 +23,7 @@ func (m DefaultManager) GetProviders() ([]*model.Provider, error) {
 
 func (m DefaultManager) GetProvider(providerId string) (*model.Provider, error) {
 	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +100,7 @@ func (m DefaultManager) UpdateProvider(provider *model.Provider) error {
 
 func (m DefaultManager) DeleteProvider(providerId string) error {
 	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -113,6 +116,7 @@ func (m DefaultManager) DeleteProvider(providerId string) error {
 
 func (m DefaultManager) GetJobsByProviderId(providerId string) ([]*model.ProviderJob, error) {
 	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +135,7 @@ func (m DefaultManager) AddJobToProviderId(providerId string, job *model.Provide
 	var eventType string
 
 	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -155,8 +160,8 @@ func (m DefaultManager) AddJobToProviderId(providerId string, job *model.Provide
 }
 
 func (m DefaultManager) DeleteAllProviders() error {
-	_, err := r.Table(tblNameProviders).Delete().Run(m.session)
-
+	res, err := r.Table(tblNameProviders).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}

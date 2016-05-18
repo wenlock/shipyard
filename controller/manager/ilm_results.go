@@ -10,6 +10,7 @@ import (
 func (m DefaultManager) GetResults(projectId string) (*model.Result, error) {
 
 	res, err := r.Table(tblNameResults).Filter(map[string]string{"projectId": projectId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -22,6 +23,7 @@ func (m DefaultManager) GetResults(projectId string) (*model.Result, error) {
 
 func (m DefaultManager) GetResult(projectId, resultId string) (*model.Result, error) {
 	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +95,7 @@ func (m DefaultManager) UpdateResult(projectId string, inputResult *model.Result
 }
 func (m DefaultManager) DeleteResult(projectId string, resultId string) error {
 	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -106,8 +109,8 @@ func (m DefaultManager) DeleteResult(projectId string, resultId string) error {
 	return nil
 }
 func (m DefaultManager) DeleteAllResults() error {
-	_, err := r.Table(tblNameResults).Delete().Run(m.session)
-
+	res, err := r.Table(tblNameResults).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}

@@ -18,10 +18,7 @@ var (
 )
 
 // check if an image exists
-func (m DefaultManager) VerifyIfImageExistsLocally(imageToCheck string) bool {
-
-	//images, err := m.client.ListImages(true)
-
+func (m DefaultManager) VerifyIfImageExistsLocally(image model.Image) bool {
 	images, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
 
 	if err != nil {
@@ -32,8 +29,8 @@ func (m DefaultManager) VerifyIfImageExistsLocally(imageToCheck string) bool {
 	for _, img := range images {
 		imageRepoTags := img.RepoTags
 		for _, imageRepoTag := range imageRepoTags {
-			if imageRepoTag == imageToCheck {
-				fmt.Printf("Image %s exists locally as %s \n", imageToCheck, imageRepoTag)
+			if imageRepoTag == image.PullableName() {
+				fmt.Printf("Image %s exists locally as %s \n", image.PullableName(), imageRepoTag)
 				return true
 			}
 		}
@@ -42,26 +39,36 @@ func (m DefaultManager) VerifyIfImageExistsLocally(imageToCheck string) bool {
 	return false
 }
 
-func (m DefaultManager) PullImage(pullableImageName string, username, password string) error {
-	if pullableImageName == "" {
-		return ErrImageWasEmpty
+func (m DefaultManager) PullImage(image model.Image) error {
+	username := ""
+	password := ""
+
+	if image.RegistryId != "" {
+		registry, err := m.Registry(image.RegistryId)
+		if err != nil {
+			log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
+		} else {
+			username = registry.Username
+			password = registry.Password
+		}
 	}
+
 	auth := dockerclient.AuthConfig{username, password, ""}
 
-	fmt.Printf("Image does not exist locally. Pulling image %s ... \n", pullableImageName)
+	fmt.Printf("Image does not exist locally. Pulling image %s ... \n", image.PullableName())
 	ticker := time.NewTicker(time.Second * 15)
 	go func() {
 		for t := range ticker.C {
 			fmt.Print("Time: ", t.UTC())
-			fmt.Printf(" Pulling image: %s. Please be patient while the process finishes ... \n", pullableImageName)
+			fmt.Printf(" Pulling image: %s. Please be patient while the process finishes ... \n", image.PullableName())
 		}
 	}()
 
 	// TODO: stop using samalba/dockerclient, use Docker, Inc docker engine client library instead
-	err := m.client.PullImage(pullableImageName, &auth)
+	err := m.client.PullImage(image.PullableName(), &auth)
 
 	if err != nil {
-		fmt.Printf("Could not pull image %s ... \n %s \n", pullableImageName, err)
+		fmt.Printf("Could not pull image %s ... \n %s \n", image.PullableName(), err)
 		ticker.Stop()
 		return err
 	}
@@ -74,6 +81,7 @@ func (m DefaultManager) PullImage(pullableImageName string, username, password s
 func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 
 	res, err := r.Table(tblNameImages).Filter(map[string]string{"projectId": projectId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +99,7 @@ func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 func (m DefaultManager) GetImage(projectId string, imageId string) (*model.Image, error) {
 	var image *model.Image
 	res, err := r.Table(tblNameImages).Filter(map[string]string{"id": imageId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -207,10 +216,10 @@ func (m DefaultManager) UpdateImageIlmTags(projectId string, imageId string, ilm
 
 func (m DefaultManager) DeleteImage(projectId string, imageId string) error {
 	res, err := r.Table(tblNameImages).Filter(map[string]string{"id": imageId}).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
-
 	if res.IsNil() {
 		return ErrImageDoesNotExist
 	}
@@ -221,8 +230,8 @@ func (m DefaultManager) DeleteImage(projectId string, imageId string) error {
 }
 
 func (m DefaultManager) DeleteAllImages() error {
-	_, err := r.Table(tblNameImages).Delete().Run(m.session)
-
+	res, err := r.Table(tblNameImages).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}

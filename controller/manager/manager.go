@@ -113,8 +113,8 @@ type (
 		DeleteProject(project *model.Project) error
 		DeleteAllProjects() error
 
-		VerifyIfImageExistsLocally(imageToCheck string) bool
-		PullImage(pullableImageName, username, password string) error
+		VerifyIfImageExistsLocally(image model.Image) bool
+		PullImage(image model.Image) error
 
 		GetImages(projectId string) ([]*model.Image, error)
 		GetImage(projectId, imageId string) (*model.Image, error)
@@ -145,7 +145,7 @@ type (
 		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
 
 		CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error)
-		UpdateBuildResults(buildId string, result model.BuildResult) error
+		UpdateBuildResults(buildId string, result *model.BuildResult) error
 		UpdateBuildStatus(buildId string, status string) error
 		UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error
 		DeleteBuild(projectId string, testId string, buildId string) error
@@ -245,10 +245,15 @@ func (m DefaultManager) initdb() {
 	// create tables if needed
 	tables := []string{tblNameConfig, tblNameEvents, tblNameAccounts, tblNameRoles, tblNameConsole, tblNameServiceKeys, tblNameRegistries, tblNameExtensions, tblNameWebhookKeys, tblNameProjects, tblNameImages, tblNameResults, tblNameTests, tblNameProviders, tblNameBuilds}
 	for _, tbl := range tables {
-		_, err := r.Table(tbl).Run(m.session)
+		res, err := r.Table(tbl).Run(m.session)
 		if err != nil {
-			if _, err := r.DB(m.database).TableCreate(tbl).Run(m.session); err != nil {
+			ires, err := r.DB(m.database).TableCreate(tbl).Run(m.session)
+			if err != nil {
 				log.Fatalf("error creating table: %s", err)
+			}
+			ires.Close()
+			if res != nil {
+				res.Close()
 			}
 		}
 	}
@@ -397,6 +402,7 @@ func (m DefaultManager) Events(limit int) ([]*model.Event, error) {
 		t.Limit(limit)
 	}
 	res, err := t.Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -416,6 +422,7 @@ func (m DefaultManager) PurgeEvents() error {
 
 func (m DefaultManager) ServiceKey(key string) (*auth.ServiceKey, error) {
 	res, err := r.Table(tblNameServiceKeys).Filter(map[string]string{"key": key}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -432,6 +439,7 @@ func (m DefaultManager) ServiceKey(key string) (*auth.ServiceKey, error) {
 
 func (m DefaultManager) ServiceKeys() ([]*auth.ServiceKey, error) {
 	res, err := r.Table(tblNameServiceKeys).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -444,6 +452,7 @@ func (m DefaultManager) ServiceKeys() ([]*auth.ServiceKey, error) {
 
 func (m DefaultManager) Accounts() ([]*auth.Account, error) {
 	res, err := r.Table(tblNameAccounts).OrderBy(r.Asc("username")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -456,6 +465,7 @@ func (m DefaultManager) Accounts() ([]*auth.Account, error) {
 
 func (m DefaultManager) Account(username string) (*auth.Account, error) {
 	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -521,6 +531,7 @@ func (m DefaultManager) SaveAccount(account *auth.Account) error {
 
 func (m DefaultManager) DeleteAccount(account *auth.Account) error {
 	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"id": account.ID}).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -602,7 +613,9 @@ func (m DefaultManager) NewAuthToken(username string, userAgent string) (*auth.A
 		tokens = append(tokens, token)
 	}
 	// delete token
-	if _, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Filter(r.Row.Field("user_agent").Eq(userAgent)).Delete().Run(m.session); err != nil {
+	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Filter(r.Row.Field("user_agent").Eq(userAgent)).Delete().Run(m.session)
+	defer res.Close()
+	if err != nil {
 		return nil, err
 	}
 	// add
@@ -662,7 +675,9 @@ func (m DefaultManager) ChangePassword(username, password string) error {
 		return err
 	}
 
-	if _, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Update(map[string]string{"password": hash}).Run(m.session); err != nil {
+	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Update(map[string]string{"password": hash}).Run(m.session)
+	defer res.Close()
+	if err != nil {
 		return err
 	}
 
@@ -673,6 +688,7 @@ func (m DefaultManager) ChangePassword(username, password string) error {
 
 func (m DefaultManager) WebhookKey(key string) (*dockerhub.WebhookKey, error) {
 	res, err := r.Table(tblNameWebhookKeys).Filter(map[string]string{"key": key}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -694,6 +710,7 @@ func (m DefaultManager) WebhookKey(key string) (*dockerhub.WebhookKey, error) {
 
 func (m DefaultManager) WebhookKeys() ([]*dockerhub.WebhookKey, error) {
 	res, err := r.Table(tblNameWebhookKeys).OrderBy(r.Asc("image")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -736,6 +753,7 @@ func (m DefaultManager) DeleteWebhookKey(id string) error {
 
 	}
 	res, err := r.Table(tblNameWebhookKeys).Get(key.ID).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 
@@ -841,6 +859,7 @@ func (m DefaultManager) AddRegistry(registry *model.Registry) error {
 
 func (m DefaultManager) RemoveRegistry(registry *model.Registry) error {
 	res, err := r.Table(tblNameRegistries).Get(registry.ID).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -856,6 +875,7 @@ func (m DefaultManager) RemoveRegistry(registry *model.Registry) error {
 
 func (m DefaultManager) Registries() ([]*model.Registry, error) {
 	res, err := r.Table(tblNameRegistries).OrderBy(r.Asc("name")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -876,6 +896,7 @@ func (m DefaultManager) Registries() ([]*model.Registry, error) {
 
 func (m DefaultManager) Registry(id string) (*model.Registry, error) {
 	res, err := r.Table(tblNameRegistries).Filter(map[string]string{"id": id}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -898,6 +919,7 @@ func (m DefaultManager) Registry(id string) (*model.Registry, error) {
 
 func (m DefaultManager) RegistryByAddress(addr string) (*model.Registry, error) {
 	res, err := r.Table(tblNameRegistries).Filter(map[string]string{"addr": addr}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -931,6 +953,7 @@ func (m DefaultManager) CreateConsoleSession(c *model.ConsoleSession) error {
 
 func (m DefaultManager) RemoveConsoleSession(c *model.ConsoleSession) error {
 	res, err := r.Table(tblNameConsole).Get(c.ID).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -944,6 +967,7 @@ func (m DefaultManager) RemoveConsoleSession(c *model.ConsoleSession) error {
 
 func (m DefaultManager) ConsoleSession(token string) (*model.ConsoleSession, error) {
 	res, err := r.Table(tblNameConsole).Filter(map[string]string{"token": token}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
