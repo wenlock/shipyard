@@ -53,7 +53,7 @@ func (m DefaultManager) GetBuildStatus(projectId string, testId string, buildId 
 	}
 
 	if build.Status == nil {
-		errMsg := fmt.Sprintf("Could not get build status for build= %s, status is nil", buildId, err.Error())
+		errMsg := fmt.Sprintf("Could not get build status for build= %s, status is nil", buildId)
 		log.Errorf(errMsg)
 		return "", errors.New(errMsg)
 	}
