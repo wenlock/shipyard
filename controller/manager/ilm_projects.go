@@ -30,6 +30,8 @@ func (m DefaultManager) Project(id string) (*model.Project, error) {
 
 	res, err := r.Table(tblNameProjects).Filter(map[string]string{"id": id}).Run(m.session)
 
+	defer res.Close()
+
 	if err != nil {
 		return nil, err
 	}

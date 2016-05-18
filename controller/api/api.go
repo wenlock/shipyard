@@ -143,11 +143,11 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 		apiRouter.HandleFunc("/api/ilm_images/{id}", a.deleteImage).Methods("DELETE")*/
 
 	//Result Related routes
-	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.createResult).Methods("POST")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.getResults).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.getResult).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.updateResult).Methods("PUT")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.deleteResult).Methods("DELETE")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results", a.createResult).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.getProjectResults).Methods("GET")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.getResult).Methods("GET")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.updateResult).Methods("PUT")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.deleteResult).Methods("DELETE")
 	//end Result related routes
 
 	//Test related routes

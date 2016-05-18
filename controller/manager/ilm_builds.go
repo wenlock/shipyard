@@ -6,15 +6,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	r "github.com/dancannon/gorethink"
 	//c "github.com/shipyard/shipyard/checker"
-	apiClient "github.com/shipyard/shipyard/client"
 	"github.com/shipyard/shipyard/model"
-	"sync"
 	"time"
 )
 
 //methods related to the Build structure
-func (m DefaultManager) GetBuilds(projectId string, testId string) ([]*model.Build, error) {
-	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"projectId": projectId, "testId": testId}).Run(m.session)
+func (m DefaultManager) GetBuildsByTestId(testId string) ([]*model.Build, error) {
+	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"testId": testId}).Run(m.session)
 	if err != nil {
 		return nil, err
 	}
@@ -25,12 +23,9 @@ func (m DefaultManager) GetBuilds(projectId string, testId string) ([]*model.Bui
 	return builds, nil
 }
 
-func (m DefaultManager) GetBuild(projectId string, testId string, buildId string) (*model.Build, error) {
-	return m.GetBuildById(buildId)
-}
-
-func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
+func (m DefaultManager) GetBuild(buildId string) (*model.Build, error) {
 	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +40,7 @@ func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
 }
 
 func (m DefaultManager) GetBuildStatus(projectId string, testId string, buildId string) (string, error) {
-	build, err := m.GetBuildById(buildId)
+	build, err := m.GetBuild(buildId)
 
 	if err != nil {
 		log.Errorf("Could not get build status for build= %s err= %s", buildId, err.Error())
@@ -59,8 +54,9 @@ func (m DefaultManager) GetBuildStatus(projectId string, testId string, buildId 
 	}
 	return build.Status.Status, nil
 }
-func (m DefaultManager) GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error) {
-	build, err := m.GetBuildById(buildId)
+
+func (m DefaultManager) GetBuildResults(buildId string) ([]*model.BuildResult, error) {
+	build, err := m.GetBuild(buildId)
 
 	if err != nil {
 		log.Errorf("Could not get results for build= %s err= %", buildId, err.Error())
@@ -69,6 +65,7 @@ func (m DefaultManager) GetBuildResults(projectId string, testId string, buildId
 
 	return build.Results, nil
 }
+
 func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error) {
 
 	var eventType string
@@ -88,7 +85,6 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 	// Instantiate a new Build object and fill out some fields
 	build = &model.Build{}
 	build.TestId = testId
-	build.ProjectId = projectId
 	build.StartTime = time.Now()
 
 	// we change the build's buildStatus to submitted
@@ -155,6 +151,7 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 
 	found := false
 
+	// Verify that the ProviderJob chosen is valid
 	for _, providerJob := range provider.ProviderJobs {
 		if providerJob.Name == test.ProviderJob.Name &&
 			providerJob.Url == test.ProviderJob.Url {
@@ -171,34 +168,34 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 		return build.ID, errors.New(msg)
 	}
 
-	// Start a goroutine that will execute the build non-blocking
-	// TODO: this go routine should be replaced eventually to a call to the provider bridge / engine
-	go func() {
+	tasks := []*model.ProviderTask{}
 
-		tasks := []*model.ProviderTask{}
-		log.Printf("Processing %d image(s)", len(imagesToBuild))
-		// For each image that we target in the test, try to run a build / verification
-		for _, image := range imagesToBuild {
-			log.Printf("Processing image=%s", image.PullableName())
+	for _, image := range imagesToBuild {
+		log.Printf("Processing image=%s", image.PullableName())
 
-			registry, err := m.Registry(image.RegistryId)
-			if err != nil {
-				log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
-			}
-
-			tasks = append(tasks, model.NewProviderTask(
-				project,
-				test,
-				build,
-				image,
-				registry,
-			))
+		registry, err := m.Registry(image.RegistryId)
+		if err != nil {
+			log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
 		}
 
-		providerBuild := model.NewProviderBuild(test.ProviderJob, tasks)
+		// Each image build will be a task in the scope of a Test Build
+		tasks = append(tasks, model.NewProviderTask(
+			project,
+			test,
+			build,
+			image,
+			registry,
+		))
+	}
 
+	// Create a Build that will be send to the appropriate Provider
+	providerBuild := model.NewProviderBuild(test.ProviderJob, tasks)
+
+	// Start a goroutine that will execute the build non-blocking
+	go func(providerBuild *model.ProviderBuild, provider *model.Provider) {
+		// Send Build request to provider
 		provider.SendBuild(providerBuild)
-	}()
+	}(providerBuild, provider)
 
 	// TODO: all these event types should be refactored as constants
 	eventType = "add-build"
@@ -206,139 +203,11 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 	return build.ID, nil
 }
 
-// Executes a BuilTask in the background as part of a wait group.
-// TODO: We should probably remove the `name` param as we already have the corresponding image object
-func (m DefaultManager) executeBuildTask(
-	project *model.Project,
-	test *model.Test,
-	build *model.Build,
-	image *model.Image,
-	wg *sync.WaitGroup,
-) {
-	// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
-	// TODO: these should probably just be views of the BuildResults
-	// TODO: need to set the author to the real user
-	// TODO: use model.NewResult() instead
-	//result := &model.Result{
-	//	BuildId:     build.ID,
-	//	Author:      "author",
-	//	ProjectId:   project.ID,
-	//	Description: project.Description,
-	//	Updater:     "author",
-	//	CreateDate:  time.Now(),
-	//}
-
-	// TODO: use model.NewTestResult() instead
-	testResult := model.TestResult{}
-	testResult.Date = time.Now()
-	testResult.TestId = test.ID
-	testResult.BuildId = build.ID
-	testResult.TestName = test.Name
-	testResult.ImageName = image.PullableName()
-	testResult.BuildId = build.ID
-
-	username := ""
-	password := ""
-
-	if image.RegistryId != "" {
-		registry, err := m.Registry(image.RegistryId)
-		if err != nil {
-			log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
-		} else {
-			username = registry.Username
-			password = registry.Password
-		}
-	}
-
-	// When the goroutine finishes, mark this wait group item as done.
-	// TODO: perhaps do this only if wg != nil?
-	defer wg.Done()
-
-	// Check to see if the image exists locally, if not, try to pull it.
-	if !m.VerifyIfImageExistsLocally(image.PullableName()) {
-		log.Printf("Image %s not available locally, will try to pull...", image.PullableName())
-		if err := m.PullImage(image.PullableName(), username, password); err != nil {
-			log.Errorf("Error pulling image %s", image.PullableName())
-			return
-		}
-	}
-
-	// Get all local images
-	localImages, _ := apiClient.GetLocalImages(m.DockerClient().URL.String())
-	//localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
-
-	// TODO: Refactor this into its own func
-	// get the docker image id and append it to the test results
-	for _, localImage := range localImages {
-		imageRepoTags := localImage.RepoTags
-		for _, imageRepoTag := range imageRepoTags {
-			if imageRepoTag == image.PullableName() {
-				//image.DockerImageId = localImage.ID
-				testResult.DockerImageId = localImage.ID
-				image.ImageId = localImage.ID
-			}
-		}
-	}
-
-	m.UpdateBuildStatus(build.ID, "running")
-	//existingResult, _ := m.GetResults(project.ID)
-
-	//// Once the image is available, try to test it with Clair
-	//log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
-	//resultsSlice, isSafe, err := c.CheckImage(image)
-	//
-	//targetArtifact := model.NewTargetArtifact(
-	//	image.ID,
-	//	model.TargetArtifactImageType,
-	//	image,
-	//)
-	//buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
-	//buildResult.TimeStamp = time.Now()
-	//
-	//m.UpdateBuildResults(build.ID, *buildResult)
-	//finishLabel := "finished_failed"
-	//
-	//appliedTag := ""
-	//if isSafe && err == nil {
-	//	// if we don't get an error and we get the isSafe flag == true
-	//	// we mark the test for the image as successful
-	//	finishLabel = "finished_success"
-	//	// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
-	//	appliedTag = test.Tagging.OnSuccess
-	//	log.Infof("Image %s is safe! :)", image.PullableName())
-	//} else {
-	//	// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
-	//	appliedTag = test.Tagging.OnFailure
-	//	log.Errorf("Image %s is NOT safe :(", image.PullableName())
-	//}
-	//if appliedTag != "" {
-	//	m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
-	//}
-	//
-	//m.UpdateBuildStatus(build.ID, finishLabel)
-	//
-	//testResult.SimpleResult.Status = finishLabel
-	//testResult.EndDate = time.Now()
-	//testResult.Blocker = false
-	//testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
-	//result.TestResults = append(result.TestResults, &testResult)
-	//result.LastUpdate = time.Now()
-	//result.LastTagApplied = appliedTag
-	//
-	//if existingResult != nil {
-	//	m.UpdateResult(project.ID, result)
-	//
-	//} else {
-	//	m.CreateResult(project.ID, result)
-	//}
-
-}
-
 func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error {
 	var eventType string
 
 	// check if exists; if so, update
-	tmpBuild, err := m.GetBuild(projectId, testId, buildId)
+	tmpBuild, err := m.GetBuild(buildId)
 	if err != nil && err != ErrBuildDoesNotExist {
 		return err
 	}
@@ -371,7 +240,7 @@ func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId str
 
 func (m DefaultManager) UpdateBuildResults(buildId string, result model.BuildResult) error {
 	var eventType string
-	build, err := m.GetBuildById(buildId)
+	build, err := m.GetBuild(buildId)
 	if err != nil {
 		return err
 	}
@@ -389,7 +258,7 @@ func (m DefaultManager) UpdateBuildResults(buildId string, result model.BuildRes
 }
 func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
 	var eventType string
-	build, err := m.GetBuildById(buildId)
+	build, err := m.GetBuild(buildId)
 	if err != nil {
 		return err
 	}

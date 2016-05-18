@@ -3,10 +3,10 @@ package model
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"net/http"
 	"time"
-	"fmt"
 )
 
 type Provider struct {
@@ -52,7 +52,7 @@ func (p *Provider) SendBuild(providerBuild *ProviderBuild) {
 		return
 	}
 
-	prettyData, err := json.MarshalIndent(providerBuild,"","  ")
+	prettyData, err := json.MarshalIndent(providerBuild, "", "  ")
 
 	if err == nil {
 		fmt.Println(string(prettyData))

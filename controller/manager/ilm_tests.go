@@ -24,6 +24,9 @@ func (m DefaultManager) GetTests(projectId string) ([]*model.Test, error) {
 func (m DefaultManager) GetTest(projectId, testId string) (*model.Test, error) {
 	var test *model.Test
 	res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testId}).Run(m.session)
+
+	defer res.Close()
+
 	if err != nil {
 		return nil, err
 	}

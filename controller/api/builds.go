@@ -11,9 +11,9 @@ import (
 func (a *Api) getBuilds(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
+	//projId := vars["projectId"]
 	testId := vars["testId"]
-	builds, err := a.manager.GetBuilds(projId, testId)
+	builds, err := a.manager.GetBuildsByTestId(testId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -26,11 +26,9 @@ func (a *Api) getBuilds(w http.ResponseWriter, r *http.Request) {
 
 func (a *Api) getBuild(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projectId := vars["projectId"]
-	testId := vars["testId"]
 	buildId := vars["buildId"]
 
-	build, err := a.manager.GetBuild(projectId, testId, buildId)
+	build, err := a.manager.GetBuild(buildId)
 	if err != nil {
 		log.Errorf("error retrieving build: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -42,6 +40,7 @@ func (a *Api) getBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
 func (a *Api) getBuildStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
@@ -59,13 +58,12 @@ func (a *Api) getBuildStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
 func (a *Api) getBuildResults(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projectId := vars["projectId"]
-	testId := vars["testId"]
 	buildId := vars["buildId"]
 
-	buildResults, err := a.manager.GetBuildResults(projectId, testId, buildId)
+	buildResults, err := a.manager.GetBuildResults(buildId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -77,6 +75,7 @@ func (a *Api) getBuildResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
 func (a *Api) createBuild(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	projId := vars["projectId"]
@@ -122,7 +121,7 @@ func (a *Api) updateBuild(w http.ResponseWriter, r *http.Request) {
 	action := vars["action"]
 	var status *model.BuildStatus
 	buildAction := status.NewBuildAction(action)
-	build, err := a.manager.GetBuild(projId, testId, buildId)
+	build, err := a.manager.GetBuild(buildId)
 	if err != nil {
 		log.Errorf("error updating build: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -149,7 +148,7 @@ func (a *Api) deleteBuild(w http.ResponseWriter, r *http.Request) {
 	testId := vars["testId"]
 	buildId := vars["buildId"]
 
-	build, err := a.manager.GetBuild(projId, testId, buildId)
+	build, err := a.manager.GetBuild(buildId)
 	if err != nil {
 		log.Errorf("error deleting build: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)

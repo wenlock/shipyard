@@ -28,6 +28,9 @@ func (m DefaultManager) GetProvider(providerId string) (*model.Provider, error) 
 	if res.IsNil() {
 		return nil, ErrProviderDoesNotExist
 	}
+
+	defer res.Close()
+
 	var provider *model.Provider
 	if err := res.One(&provider); err != nil {
 		return nil, err

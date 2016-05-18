@@ -74,9 +74,17 @@ func (m DefaultManager) PullImage(pullableImageName string, username, password s
 func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 
 	res, err := r.Table(tblNameImages).Filter(map[string]string{"projectId": projectId}).Run(m.session)
+
+	defer res.Close()
+
 	if err != nil {
 		return nil, err
 	}
+
+	if res.IsNil() {
+		return nil, errors.New("Image query returned nil response")
+	}
+
 	images := []*model.Image{}
 	if err := res.All(&images); err != nil {
 		return nil, err

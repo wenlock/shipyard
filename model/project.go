@@ -35,3 +35,49 @@ func (p *Project) NewProject(name string, description string, status string, ima
 		UpdatedBy:    updatedBy,
 	}
 }
+
+type ProjectResults struct {
+	ProjectId      string        `json:"projectId" gorethink:"projectId"`
+	Description    string        `json:"description" gorethink:"description"`
+	BuildId        string        `json:"buildId" gorethink:"buildId"`
+	RunDate        time.Time     `json:"runDate" gorethink:"runDate"`
+	EndDate        time.Time     `json:"endDate" gorethink:"endDate"`
+	CreateDate     time.Time     `json:"createDate" gorethink:"createDate"`
+	Author         string        `json:"author" gorethink:"author"`
+	ProjectVersion string        `json:"projectVersion" gorethink:"lastRunTime"`
+	LastTagApplied string        `json:"lastTagapplied" gorethink:"lastTagApplied"`
+	LastUpdate     time.Time     `json:"lastUpdate" gorethink:"lastUpdate"`
+	Updater        string        `json:"updater" gorethink:"updater"`
+	TestResults    []*TestResult `json:"testResults" gorethink:"testResults"`
+}
+
+func NewProjectResults(
+	projectId string,
+	description string,
+	buildId string,
+	runDate time.Time,
+	endDate time.Time,
+	createDate time.Time,
+	author string,
+	projectVersion string,
+	lastTagApplied string,
+	lastUpdate time.Time,
+	updater string,
+	testResults []*TestResult,
+) *ProjectResults {
+
+	return &ProjectResults{
+		ProjectId:      projectId,
+		Description:    description,
+		BuildId:        buildId,
+		RunDate:        runDate,
+		EndDate:        endDate,
+		CreateDate:     createDate,
+		Author:         author,
+		ProjectVersion: projectVersion,
+		LastTagApplied: lastTagApplied,
+		LastUpdate:     lastUpdate,
+		Updater:        updater,
+		TestResults:    testResults,
+	}
+}

@@ -18,17 +18,15 @@ type Build struct {
 	Status    *BuildStatus   `json:"status,omitempty" gorethink:"status,omitempty"`
 	Results   []*BuildResult `json:"results,omitempty" gorethink:"results,omitempty"`
 	TestId    string         `json:"testId" gorethink:"testId"`
-	ProjectId string         `json:"projectId" gorethink:"projectId"`
 }
 
 func (b *Build) NewBuild(config *BuildConfig, status *BuildStatus, results []*BuildResult, testId string, projectId string) *Build {
 
 	return &Build{
-		Config:    config,
-		Status:    status,
-		Results:   results,
-		TestId:    testId,
-		ProjectId: projectId,
+		Config:  config,
+		Status:  status,
+		Results: results,
+		TestId:  testId,
 	}
 }
 
@@ -58,17 +56,19 @@ type BuildResult struct {
 	TargetArtifact *TargetArtifact `json:"targetArtifact" gorethink:"targetArtifact"`
 	ResultEntries  []string        `json:"resultEntries" gorethink:"resultEntries"`
 	TimeStamp      time.Time       `json:"-" gorethink:"timeStamp,omitempty"`
+	Successful     bool            `json:"successful" gorethink:"successful"`
 }
 
 //type ResultEntry string
 
-func NewBuildResult(buildId string, artifact *TargetArtifact, results []string) *BuildResult {
+func NewBuildResult(buildId string, artifact *TargetArtifact, results []string, successful bool) *BuildResult {
 
 	return &BuildResult{
 		BuildId:        buildId,
 		TargetArtifact: artifact,
 		ResultEntries:  results,
 		TimeStamp:      time.Now(),
+		Successful:     successful,
 	}
 }
 

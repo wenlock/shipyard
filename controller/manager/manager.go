@@ -131,18 +131,17 @@ type (
 		DeleteTest(projectId string, testId string) error
 		DeleteAllTests() error
 
-		GetResults(projectId string) (*model.Result, error)
-		GetResult(projectId, resultId string) (*model.Result, error)
-		CreateResult(projectId string, result *model.Result) error
-		UpdateResult(projectId string, result *model.Result) error
-		DeleteResult(projectId string, resultId string) error
-		DeleteAllResults() error
+		GetProjectResults(projectId string) (*model.ProjectResults, error)
+		//GetResult(projectId, resultId string) (*model.ProjectResults, error)
+		//CreateResult(projectId string, result *model.ProjectResults) error
+		//UpdateResult(projectId string, result *model.ProjectResults) error
+		//DeleteResult(projectId string, resultId string) error
+		//DeleteAllResults() error
 
-		GetBuilds(projectId string, testId string) ([]*model.Build, error)
-		GetBuild(projectId string, testId string, buildId string) (*model.Build, error)
-		GetBuildById(buildId string) (*model.Build, error)
+		GetBuildsByTestId(testId string) ([]*model.Build, error)
+		GetBuild(buildId string) (*model.Build, error)
 		GetBuildStatus(projectId string, testId string, buildId string) (string, error)
-		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
+		GetBuildResults(buildId string) ([]*model.BuildResult, error)
 
 		CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error)
 		UpdateBuildResults(buildId string, result model.BuildResult) error
@@ -876,6 +875,7 @@ func (m DefaultManager) Registries() ([]*model.Registry, error) {
 
 func (m DefaultManager) Registry(id string) (*model.Registry, error) {
 	res, err := r.Table(tblNameRegistries).Filter(map[string]string{"id": id}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
