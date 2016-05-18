@@ -84,6 +84,7 @@ func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Close()
 	images := []*model.Image{}
 	if err := res.All(&images); err != nil {
 		return nil, err
@@ -101,6 +102,7 @@ func (m DefaultManager) GetImage(projectId string, imageId string) (*model.Image
 	if err != nil {
 		return nil, err
 	}
+	defer res.Close()
 	if res.IsNil() {
 		return nil, ErrImageDoesNotExist
 	}
@@ -217,7 +219,7 @@ func (m DefaultManager) DeleteImage(projectId string, imageId string) error {
 	if err != nil {
 		return err
 	}
-
+	defer res.Close()
 	if res.IsNil() {
 		return ErrImageDoesNotExist
 	}
@@ -228,8 +230,8 @@ func (m DefaultManager) DeleteImage(projectId string, imageId string) error {
 }
 
 func (m DefaultManager) DeleteAllImages() error {
-	_, err := r.Table(tblNameImages).Delete().Run(m.session)
-
+	res, err := r.Table(tblNameImages).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}

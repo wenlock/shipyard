@@ -22,6 +22,7 @@ func (m DefaultManager) GetBuilds(projectId string, testId string) ([]*model.Bui
 	if err != nil {
 		return nil, err
 	}
+	defer res.Close()
 	builds := []*model.Build{}
 	if err := res.All(&builds); err != nil {
 		return nil, err
@@ -40,6 +41,7 @@ func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Close()
 	if res.IsNil() {
 		return nil, ErrBuildDoesNotExist
 	}
@@ -399,7 +401,7 @@ func (m DefaultManager) DeleteBuild(projectId string, testId string, buildId str
 	if err != nil {
 		return err
 	}
-
+	defer build.Close()
 	if build.IsNil() {
 		return ErrBuildDoesNotExist
 	}
@@ -410,8 +412,9 @@ func (m DefaultManager) DeleteBuild(projectId string, testId string, buildId str
 }
 
 func (m DefaultManager) DeleteAllBuilds() error {
-	_, err := r.Table(tblNameBuilds).Delete().Run(m.session)
+	res, err := r.Table(tblNameBuilds).Delete().Run(m.session)
 
+	defer res.Close()
 	if err != nil {
 		return err
 	}

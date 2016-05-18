@@ -16,6 +16,7 @@ func (m DefaultManager) Projects() ([]*model.Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Close()
 	projects := []*model.Project{}
 	if err := res.All(&projects); err != nil {
 		return nil, err
@@ -29,7 +30,7 @@ func (m DefaultManager) Project(id string) (*model.Project, error) {
 	var project *model.Project
 
 	res, err := r.Table(tblNameProjects).Filter(map[string]string{"id": id}).Run(m.session)
-
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +137,7 @@ func (m DefaultManager) UpdateProject(project *model.Project) error {
 		if err != nil {
 			return err
 		}
+		defer res.Close()
 		oldImages := []*model.Image{}
 		if err := res.All(&oldImages); err != nil {
 			return err
@@ -143,9 +145,11 @@ func (m DefaultManager) UpdateProject(project *model.Project) error {
 
 		// Remove existing images for this project
 		for _, oldImage := range oldImages {
-			if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": oldImage.ID}).Delete().Run(m.session); err != nil {
+			res, err := r.Table(tblNameImages).Filter(map[string]string{"id": oldImage.ID}).Delete().Run(m.session)
+			if err != nil {
 				return err
 			}
+			res.Close()
 		}
 
 		// Insert all the images that are incoming from the request which should have the new and old ones
@@ -163,6 +167,7 @@ func (m DefaultManager) UpdateProject(project *model.Project) error {
 		if err != nil {
 			return err
 		}
+		defer res.Close()
 		oldTests := []*model.Test{}
 		if err := res.All(&oldTests); err != nil {
 			return err
@@ -170,9 +175,11 @@ func (m DefaultManager) UpdateProject(project *model.Project) error {
 
 		// Remove existing tests for this project
 		for _, oldTest := range oldTests {
-			if _, err := r.Table(tblNameTests).Filter(map[string]string{"id": oldTest.ID}).Delete().Run(m.session); err != nil {
+			res, err := r.Table(tblNameTests).Filter(map[string]string{"id": oldTest.ID}).Delete().Run(m.session)
+			if err != nil {
 				return err
 			}
+			res.Close()
 		}
 
 		// Insert all the tests that are incoming from the request which should have the new and old ones
@@ -200,7 +207,7 @@ func (m DefaultManager) DeleteProject(project *model.Project) error {
 	if err != nil {
 		return err
 	}
-
+	defer res.Close()
 	if res.IsNil() {
 		return ErrProjectDoesNotExist
 	}
@@ -208,6 +215,7 @@ func (m DefaultManager) DeleteProject(project *model.Project) error {
 	if err != nil {
 		return err
 	}
+	defer res.Close()
 	imagesToDelete := []*model.Image{}
 	if err := res.All(&imagesToDelete); err != nil {
 		return err
@@ -215,15 +223,18 @@ func (m DefaultManager) DeleteProject(project *model.Project) error {
 
 	// Remove existing images for this project
 	for _, imgToDelete := range imagesToDelete {
-		if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": imgToDelete.ID}).Delete().Run(m.session); err != nil {
+		res, err := r.Table(tblNameImages).Filter(map[string]string{"id": imgToDelete.ID}).Delete().Run(m.session)
+		if err != nil {
 			return err
 		}
+		res.Close()
 	}
 
 	res, err = r.Table(tblNameTests).Filter(map[string]string{"projectId": project.ID}).Run(m.session)
 	if err != nil {
 		return err
 	}
+	defer res.Close()
 	testsToDelete := []*model.Test{}
 	if err := res.All(&testsToDelete); err != nil {
 		return err
@@ -231,9 +242,11 @@ func (m DefaultManager) DeleteProject(project *model.Project) error {
 
 	// Remove existing tests for this project
 	for _, testToDelete := range testsToDelete {
-		if _, err := r.Table(tblNameTests).Filter(map[string]string{"id": testToDelete.ID}).Delete().Run(m.session); err != nil {
+		res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testToDelete.ID}).Delete().Run(m.session)
+		if err != nil {
 			return err
 		}
+		res.Close()
 	}
 
 	m.logEvent("delete-project", fmt.Sprintf("id=%s, name=%s", project.ID, project.Name), []string{"security"})
@@ -242,8 +255,8 @@ func (m DefaultManager) DeleteProject(project *model.Project) error {
 }
 
 func (m DefaultManager) DeleteAllProjects() error {
-	_, err := r.Table(tblNameProjects).Delete().Run(m.session)
-
+	res, err := r.Table(tblNameProjects).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}

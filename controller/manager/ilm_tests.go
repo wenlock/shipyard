@@ -11,6 +11,7 @@ import (
 func (m DefaultManager) GetTests(projectId string) ([]*model.Test, error) {
 
 	res, err := r.Table(tblNameTests).Filter(map[string]string{"projectId": projectId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -24,6 +25,7 @@ func (m DefaultManager) GetTests(projectId string) ([]*model.Test, error) {
 func (m DefaultManager) GetTest(projectId, testId string) (*model.Test, error) {
 	var test *model.Test
 	res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testId}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +95,7 @@ func (m DefaultManager) UpdateTest(projectId string, test *model.Test) error {
 
 func (m DefaultManager) DeleteTest(projectId string, testId string) error {
 	res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testId}).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -105,8 +108,8 @@ func (m DefaultManager) DeleteTest(projectId string, testId string) error {
 	return nil
 }
 func (m DefaultManager) DeleteAllTests() error {
-	_, err := r.Table(tblNameTests).Delete().Run(m.session)
-
+	res, err := r.Table(tblNameTests).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
