@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"net/http"
 	"time"
+	"fmt"
 )
 
 type Provider struct {
@@ -49,6 +50,12 @@ func (p *Provider) SendBuild(providerBuild *ProviderBuild) {
 	if err != nil {
 		log.Errorf("Could not marshal provider build")
 		return
+	}
+
+	prettyData, err := json.MarshalIndent(providerBuild,"","  ")
+
+	if err == nil {
+		fmt.Println(string(prettyData))
 	}
 
 	req, err := http.NewRequest("POST", providerBuild.ProviderJob.Url, bytes.NewBuffer(data))

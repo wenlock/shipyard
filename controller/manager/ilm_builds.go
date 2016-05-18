@@ -144,39 +144,32 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 		return ""
 	}()
 
-	// TODO: extract the provider that matches this Test / Build
-	providers, err := m.GetProviders()
+	// Verify that the provider is valid
+	provider, err := m.GetProvider(test.Provider.ID)
 
-	index := len(providers)
-	for i, prov := range providers {
-		// TODO: this is hardcoded, please change
-		if prov.Url == "http://providerbridge:1323" {
-			index = i
+	if err != nil {
+		log.Errorf("Error finding provider %s with id %s for test %s with id %s",
+			test.Provider.Name, test.Provider.ID, test.Name, test.ID)
+		return build.ID, err
+	}
+
+	found := false
+
+	for _, providerJob := range provider.ProviderJobs {
+		if providerJob.Name == test.ProviderJob.Name &&
+			providerJob.Url == test.ProviderJob.Url {
+			found = true
 			break
 		}
 	}
 
-	if index == len(providers) {
-		return build.ID, errors.New("Could not find the selected Provider for this Test / Build.")
+	if !found {
+		msg := fmt.Sprintf("Error matching provider job %s with url %s for provider %s with id %s for test %s with id %s",
+			test.ProviderJob.Name, test.ProviderJob.Url, test.Provider.Name, test.Provider.ID, test.Name, test.ID)
+		log.Error(msg)
+
+		return build.ID, errors.New(msg)
 	}
-
-	provider := providers[index]
-
-	// TODO: extract provider job from Build / Test
-
-	index = len(provider.ProviderJobs)
-	for i, job := range provider.ProviderJobs {
-		if job.Url == "http://providerbridge:1323/jobs" {
-			index = i
-			break
-		}
-	}
-
-	if index == len(provider.ProviderJobs) {
-		return build.ID, errors.New("Could not find the selected provider job for this Test / Build.")
-	}
-
-	providerJob := provider.ProviderJobs[index]
 
 	// Start a goroutine that will execute the build non-blocking
 	// TODO: this go routine should be replaced eventually to a call to the provider bridge / engine
@@ -188,21 +181,23 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 		for _, image := range imagesToBuild {
 			log.Printf("Processing image=%s", image.PullableName())
 
-			// Run the verification concurrently for each image and then block to wait for all to finish.
+			registry, err := m.Registry(image.RegistryId)
+			if err != nil {
+				log.Warnf("Could not find registry %s for image %s", image.RegistryId, image.ID)
+			}
 
 			tasks = append(tasks, model.NewProviderTask(
 				project,
 				test,
 				build,
 				image,
-				nil,
+				registry,
 			))
 		}
 
-		providerBuild := model.NewProviderBuild(providerJob, tasks)
+		providerBuild := model.NewProviderBuild(test.ProviderJob, tasks)
 
 		provider.SendBuild(providerBuild)
-		// Block the outer goroutine until ALL the inner goroutines finish
 	}()
 
 	// TODO: all these event types should be refactored as constants

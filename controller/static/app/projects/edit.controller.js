@@ -746,6 +746,8 @@
         function createSaveTest(test) {
             console.log("data rdy for saving");
             console.log(test);
+            test.provider = vm.chosenProvider;
+            test.providerJob = vm.chosenProviderJob;
             ProjectService.addTest(vm.project.id, test)
                 .then(function(data) {
                     vm.getTests(vm.project.id);
