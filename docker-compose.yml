@@ -4,7 +4,7 @@ services:
   rethinkdb:
     env_file: .env
     restart: always
-    image: rethinkdb:2.2
+    image: rethinkdb:2.3
     ports:
       - "8083:8080"
       - "8084:28015"

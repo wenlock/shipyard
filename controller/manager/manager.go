@@ -206,7 +206,6 @@ func NewManager(addr string, database string, authKey string, client *dockerclie
 		Address:  addr,
 		Database: database,
 		AuthKey:  authKey,
-		MaxIdle:  10,
 	})
 	if err != nil {
 		return nil, err
