@@ -12,6 +12,8 @@ import (
 )
 
 type executeBuildTasksResults struct {
+	projectResult *model.Result
+	appliedTag string
 	buildStatus string
 	buildResult *model.BuildResult
 }
@@ -170,34 +172,49 @@ func (m DefaultManager) executeBuildTasks(
 	build *model.Build,
 	imagesToBuild []*model.Image,
 ) {
+
+	// Channels for `executeBuildTask` generators
 	var taskReceivingChannels []<-chan executeBuildTasksResults
 	// For each image that we target in the test, try to run a build / verification
 	// TODO: Add "running", "start", etc... as constants somewhere
 	m.UpdateBuildStatus(build.ID, "running")
 	for _, image := range imagesToBuild {
-		log.Printf("Processing image=%s", image.PullableName())
-		channel := m.executeBuildTask(*project, *test, *build, *image)
+		// Start executing tasks concurrently
+		channel, err := m.executeBuildTask(*project, *test, *build, *image)
+		if err != nil {
+			log.Error(err)
+			return
+		}
 		taskReceivingChannels = append(taskReceivingChannels, channel)
 	}
-
-	var statuses []string
-	for _, taskReceivingChannel := range taskReceivingChannels {
+	// Synchronize with goroutines and fetch the build results
+	var buildStatuses []string
+	var buildResults []*model.BuildResult
+	for i, taskReceivingChannel := range taskReceivingChannels {
 		results := <-taskReceivingChannel
 		// Fetch the build statuses and store them for later use
-		statuses = append(statuses, results.buildStatus)
-		// Update build results
-		m.UpdateBuildResults(build.ID, results.buildResult)
+		buildStatuses = append(buildStatuses, results.buildStatus)
+		// Fetch the build results and store them for later use
+		buildResults = append(buildResults, results.buildResult)
+		// Update results for the project
+		m.CreateOrUpdateResults(project.ID, results.projectResult)
+		// Update ILM tags
+		m.UpdateImageIlmTags(project.ID, imagesToBuild[i].ID, results.appliedTag)
 	}
-	log.Info("all channels received")
 	// Check to see if build was successful by comparing the statuses for all build tasks
 	buildStatus := "finished_success"
-	for _, status := range statuses {
+	for _, status := range buildStatuses {
 		if status != "finished_success" {
 			buildStatus = "finished_failed"
 			break
 		}
 	}
-	// Update status for our build model
+
+	// Update build results in our build
+	if err := m.UpdateBuildResults(build.ID, buildResults); err != nil {
+		log.Error(err)
+	}
+	// Update status for our build
 	if err := m.UpdateBuildStatus(build.ID, buildStatus); err != nil {
 		log.Error(err)
 	}
@@ -211,31 +228,10 @@ func (m DefaultManager) executeBuildTask(
 	test model.Test,
 	build model.Build,
 	image model.Image,
-) <-chan executeBuildTasksResults {
+) (<-chan executeBuildTasksResults, error) {
 	channel := make(chan executeBuildTasksResults)
 
 	go func() {
-		// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
-		// TODO: these should probably just be views of the BuildResults
-		// TODO: need to set the author to the real user
-		// TODO: use model.NewResult() instead
-		result := &model.Result{
-			BuildId:     build.ID,
-			Author:      "author",
-			ProjectId:   project.ID,
-			Description: project.Description,
-			Updater:     "author",
-			CreateDate:  time.Now(),
-		}
-
-		// TODO: use model.NewTestResult() instead
-		testResult := model.TestResult{}
-		testResult.Date = time.Now()
-		testResult.TestId = test.ID
-		testResult.BuildId = build.ID
-		testResult.TestName = test.Name
-		testResult.ImageName = image.PullableName()
-		testResult.BuildId = build.ID
 
 		// Check to see if the image exists locally, if not, try to pull it.
 		if !m.VerifyIfImageExistsLocally(image) {
@@ -246,40 +242,38 @@ func (m DefaultManager) executeBuildTask(
 			}
 		}
 
-		// Get all local images
-		localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
-
-		// TODO: Refactor this into its own func
-		// get the docker image id and append it to the test results
-		for _, localImage := range localImages {
-			imageRepoTags := localImage.RepoTags
-			for _, imageRepoTag := range imageRepoTags {
-				if imageRepoTag == image.PullableName() {
-					//image.DockerImageId = localImage.ID
-					testResult.DockerImageId = localImage.ID
-					image.ImageId = localImage.ID
-				}
-			}
+		// Fetch docker ID of image
+		dockerImageId, err := m.FetchIDForImage(image.PullableName())
+		image.ImageId = dockerImageId
+		if err != nil {
+			log.Error(err)
+			return
 		}
 
-		existingResult, _ := m.GetResults(project.ID)
+		log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
 
 		// Once the image is available, try to test it with Clair
-		log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
-		resultsSlice, isSafe, err := c.CheckImage(&image)
+		resultsSlice, isSafe, err1 := c.CheckImage(&image)
+		if err1 != nil {
+			log.Error(err1)
+			return
+		}
 
-		targetArtifact := model.NewTargetArtifact(
-			image.ID,
-			model.TargetArtifactImageType,
-			image,
-		)
-		buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
+		// Create build result with clair results
+		buildResult := model.NewBuildResult(
+			build.ID,
+			model.NewTargetArtifact(
+				image.ID,
+				model.TargetArtifactImageType,
+				image,
+			),
+			resultsSlice)
 		buildResult.TimeStamp = time.Now()
 
-		finishLabel := "finished_failed"
-
-		appliedTag := ""
-		if isSafe && err == nil {
+		// determine success or failure (values will be added to channel)
+		var finishLabel string
+		var appliedTag string
+		if isSafe {
 			// if we don't get an error and we get the isSafe flag == true
 			// we mark the test for the image as successful
 			finishLabel = "finished_success"
@@ -289,36 +283,55 @@ func (m DefaultManager) executeBuildTask(
 		} else {
 			// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
 			appliedTag = test.Tagging.OnFailure
+			finishLabel = "finished_failure"
 			log.Errorf("Image %s is NOT safe :(", image.PullableName())
 		}
-		if appliedTag != "" {
-			m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
+
+		// Instantiate `testResult` with the information we have
+		testResult := &model.TestResult{
+			TestId: test.ID,
+			DockerImageId: dockerImageId,
+			BuildId: build.ID,
+			TestName: test.Name,
+			ImageName: image.PullableName(),
+			SimpleResult: model.SimpleResult{
+				Date: time.Now(),
+				Status: finishLabel,
+				EndDate: time.Now(),
+				AppliedTag: []string{
+					appliedTag,
+				},
+			},
+			Blocker: false,
 		}
 
-
-		testResult.SimpleResult.Status = finishLabel
-		testResult.EndDate = time.Now()
-		testResult.Blocker = false
-		testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
-		result.TestResults = append(result.TestResults, &testResult)
-		result.LastUpdate = time.Now()
-		result.LastTagApplied = appliedTag
-
-		if existingResult != nil {
-			m.UpdateResult(project.ID, result)
-		} else {
-			m.CreateResult(project.ID, result)
+		// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
+		// TODO: these should probably just be views of the BuildResults
+		// TODO: need to set the author to the real user
+		// TODO: use model.NewResult() instead
+		projectResult := &model.Result{
+			BuildId:     build.ID,
+			Author:      "author",
+			ProjectId:   project.ID,
+			Description: project.Description,
+			Updater:     "author",
+			CreateDate:  time.Now(),
+			TestResults: []*model.TestResult{
+				testResult,
+			},
+			LastUpdate: time.Now(),
+			LastTagApplied: appliedTag,
 		}
 
-		log.Info("sending channel")
 		channel <- executeBuildTasksResults{
+			projectResult: projectResult,
+			appliedTag: appliedTag,
 			buildStatus: finishLabel,
 			buildResult: buildResult,
 		}
-		log.Info("sent channel")
 	}()
 
-	return channel
+	return channel, nil
 }
 
 func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error {
@@ -356,13 +369,15 @@ func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId str
 
 }
 
-func (m DefaultManager) UpdateBuildResults(buildId string, result *model.BuildResult) error {
+func (m DefaultManager) UpdateBuildResults(buildId string, results []*model.BuildResult) error {
 	var eventType string
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
 		return err
 	}
-	build.Results = append(build.Results, result)
+	for _, result := range results {
+		build.Results = append(build.Results, result)
+	}
 
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
@@ -421,3 +436,39 @@ func (m DefaultManager) DeleteAllBuilds() error {
 
 	return nil
 }
+
+func (m DefaultManager) FetchIDForImage(image string) (string, error) {
+	localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	var imageId string
+	for _, localImage := range localImages {
+		imageRepoTags := localImage.RepoTags
+		for _, imageRepoTag := range imageRepoTags {
+			if imageRepoTag == image {
+				imageId = localImage.ID
+			}
+		}
+	}
+
+	return imageId, nil
+}
+
+func (m DefaultManager) CreateOrUpdateResults(id string, result *model.Result) error {
+	existingResult, _ := m.GetResults(id)
+
+	var err error
+
+	if existingResult != nil {
+		err = m.UpdateResult(id, result)
+	} else {
+		err = m.CreateResult(id, result)
+	}
+
+	return err
+}
+
+
