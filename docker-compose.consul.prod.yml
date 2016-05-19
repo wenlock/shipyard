@@ -1,7 +1,7 @@
 version: '2'
 # Notes:
 # 1. Using the docker0 IP address for swarm containers, consul and registrator, as connection fails when using internal hostnames.
-#    Use "ip addr docker0" to get the local address and update as needed.
+#    Use "ip addr show docker0" to get the local address and update as needed.
 # 2. Not using a .env file as in docker-compose.yml as this file in meant for production deployment.
 # 3. All persistant data is saved under /DATA/ilm using volume mapping.
 # 4. Copy the clair_config folder from the eedevops/shipyard repository to the folder this file is saved in. 
@@ -48,6 +48,8 @@ services:
     image: shipyard/docker-proxy:latest
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
+    environment:
+      PORT: "2375"
     ports:
       - "2375:2375"
 
@@ -85,7 +87,7 @@ services:
   swarm:
     restart: always
     image: swarm:latest
-    command: manage --host tcp://0.0.0.0:3375 consul://172.17.0.1:8070
+    command: manage --replication --addr 172.17.0.1:3375 --host tcp://0.0.0.0:3375 consul://172.17.0.1:8070
     depends_on:
       - consul
     ports:
@@ -94,7 +96,7 @@ services:
   agent:
     restart: always
     image: swarm:latest
-    command: join --addr 172.17.0.1:2375 consul://172.17.0.1:8070
+    command: join --advertise=172.17.0.1:2375 consul://172.17.0.1:8070
     depends_on:
       - proxy
       - swarm

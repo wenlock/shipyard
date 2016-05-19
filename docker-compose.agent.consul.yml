@@ -1,0 +1,28 @@
+# Modify below place-holders in "<>" as needed
+# Note: 
+# If NOT using the Shipyard Proxy container - Must enable the docker daemon to receive remote connections
+# However, we've experienced Shipyard operating better via proxy
+
+agent:
+    restart: always
+    image: swarm:latest
+    command: join --advertise=<External_IP_OF_THIS_NODE>:2375 consul://<CONSUL_IP:PORT>
+proxy:
+    restart: always
+    environment:
+      HOSTNAME:
+      PORT: "2375"
+    image: shipyard/docker-proxy:latest
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    ports:
+      - "2375:2375"
+registrator:
+    image: gliderlabs/registrator
+    hostname: registrator
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    command: "consul://<CONSUL_IP:PORT>"
+    security_opt:
+      - label:type:docker_t
