@@ -37,9 +37,7 @@ func (m DefaultManager) GetBuild(projectId string, testId string, buildId string
 }
 
 func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
-	log.Info("looking for build in db")
 	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Run(m.session)
-	log.Info("done looking in db")
 	defer res.Close()
 	if err != nil {
 		return nil, err
@@ -51,7 +49,7 @@ func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
 	if err := res.One(&build); err != nil {
 		return nil, err
 	}
-	log.Info("return build")
+
 	return build, nil
 }
 
@@ -172,6 +170,7 @@ func (m DefaultManager) executeBuildTasks(
 	build *model.Build,
 	imagesToBuild []*model.Image,
 ) {
+	log.Debugf("Executing builds for images %v as part of test %s", imagesToBuild, test.Name)
 
 	// Channels for `executeBuildTask` generators
 	var taskReceivingChannels []<-chan executeBuildTasksResults
@@ -187,6 +186,9 @@ func (m DefaultManager) executeBuildTasks(
 		}
 		taskReceivingChannels = append(taskReceivingChannels, channel)
 	}
+
+	log.Debugf("Synchronizing with child goroutines executeBuildTask")
+
 	// Synchronize with goroutines and fetch the build results
 	var buildStatuses []string
 	var buildResults []*model.BuildResult
@@ -197,9 +199,13 @@ func (m DefaultManager) executeBuildTasks(
 		// Fetch the build results and store them for later use
 		buildResults = append(buildResults, results.buildResult)
 		// Update results for the project
-		m.CreateOrUpdateResults(project.ID, results.projectResult)
+		if err := m.CreateOrUpdateResults(project.ID, results.projectResult); err != nil {
+			log.Error(err)
+		}
 		// Update ILM tags
-		m.UpdateImageIlmTags(project.ID, imagesToBuild[i].ID, results.appliedTag)
+		if err := m.UpdateImageIlmTags(project.ID, imagesToBuild[i].ID, results.appliedTag); err != nil {
+			log.Error(err)
+		}
 	}
 	// Check to see if build was successful by comparing the statuses for all build tasks
 	buildStatus := "finished_success"
@@ -232,15 +238,15 @@ func (m DefaultManager) executeBuildTask(
 	channel := make(chan executeBuildTasksResults)
 
 	go func() {
+		log.Debugf("Executing build task for ilm image %s within test %s.", image.Name, test.Name)
 
 		// Check to see if the image exists locally, if not, try to pull it.
-		if !m.VerifyIfImageExistsLocally(image) {
-			log.Printf("Image %s not available locally, will try to pull...", image.PullableName())
-			if err := m.PullImage(image); err != nil {
-				log.Errorf("Error pulling image %s", image.PullableName())
-				return
-			}
+		if err := m.PullImage(image); err != nil {
+			log.Errorf("Error pulling image %s.", image.PullableName())
+			return
 		}
+
+		log.Debugf("Fetching docker image ID for ilm image %s.", image.PullableName())
 
 		// Fetch docker ID of image
 		dockerImageId, err := m.FetchIDForImage(image.PullableName())
@@ -250,14 +256,10 @@ func (m DefaultManager) executeBuildTask(
 			return
 		}
 
-		log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
+		log.Debugf("Will attempt to test image %s with Clair...", image.PullableName())
 
 		// Once the image is available, try to test it with Clair
-		resultsSlice, isSafe, err1 := c.CheckImage(&image)
-		if err1 != nil {
-			log.Error(err1)
-			return
-		}
+		resultsSlice, isSafe, clairErr := c.CheckImage(&image)
 
 		// Create build result with clair results
 		buildResult := model.NewBuildResult(
@@ -273,19 +275,17 @@ func (m DefaultManager) executeBuildTask(
 		// determine success or failure (values will be added to channel)
 		var finishLabel string
 		var appliedTag string
-		if isSafe {
-			// if we don't get an error and we get the isSafe flag == true
-			// we mark the test for the image as successful
-			finishLabel = "finished_success"
-			// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
+		if isSafe && clairErr == nil {
+			log.Debugf("Clair yielded no errors for image %s.", image.PullableName())
 			appliedTag = test.Tagging.OnSuccess
-			log.Infof("Image %s is safe! :)", image.PullableName())
+			finishLabel = "finished_success"
 		} else {
-			// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
+			log.Debugf("Clair yielded error(s) for image %s.", image.PullableName())
 			appliedTag = test.Tagging.OnFailure
 			finishLabel = "finished_failure"
-			log.Errorf("Image %s is NOT safe :(", image.PullableName())
 		}
+
+		log.Debugf("Creating result objects for test %s", test.Name)
 
 		// Instantiate `testResult` with the information we have
 		testResult := &model.TestResult{
@@ -322,6 +322,8 @@ func (m DefaultManager) executeBuildTask(
 			LastUpdate: time.Now(),
 			LastTagApplied: appliedTag,
 		}
+
+		log.Debugf("Synchronizing with executeBuildTasks parent goroutine")
 
 		channel <- executeBuildTasksResults{
 			projectResult: projectResult,
@@ -390,7 +392,6 @@ func (m DefaultManager) UpdateBuildResults(buildId string, results []*model.Buil
 	return nil
 }
 func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
-	log.Info("updating build status")
 	var eventType string
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
@@ -398,16 +399,13 @@ func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
 	}
 	build.Status.Status = status
 
-	log.Info("fetching from db")
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
 	}
-	log.Info("fetched from db")
 
 	eventType = "update-build-status"
 
 	m.logEvent(eventType, fmt.Sprintf("id=%s", buildId), []string{"security"})
-	log.Info("finished updating status")
 
 	return nil
 }
@@ -458,13 +456,17 @@ func (m DefaultManager) FetchIDForImage(image string) (string, error) {
 }
 
 func (m DefaultManager) CreateOrUpdateResults(id string, result *model.Result) error {
+	log.Debugf("Updating Project Results for project %s.", id)
+
 	existingResult, _ := m.GetResults(id)
 
 	var err error
 
 	if existingResult != nil {
+		log.Debugf("Result for project %s already exists. Updating project result...", id)
 		err = m.UpdateResult(id, result)
 	} else {
+		log.Debugf("Result for project %s does not yet exists. Creating project result...", id)
 		err = m.CreateResult(id, result)
 	}
 
