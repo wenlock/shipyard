@@ -314,7 +314,6 @@
         $(".ui.search.fluid.dropdown.testProvider")
             .dropdown({
                 onChange: function(value, text, $selectedItem) {
-                    $('#edit-project-test-create-modal-'+vm.randomCreateTestId).find("input").val("");
                     if(value === "Predefined Provider")
                         getTestsProviders();
                 }
