@@ -5,9 +5,14 @@
         .module('shipyard.projects')
         .controller('InspectController', InspectController);
 
-    InspectController.$inject = ['resolvedResults', '$scope', 'ProjectService', 'RegistryService', '$stateParams'];
-    function InspectController(resolvedResults, $scope, ProjectService, RegistryService, $stateParams) {
+    InspectController.$inject = ['resolvedResults', '$scope', '$rootScope','ProjectService', 'RegistryService', '$stateParams'];
+    function InspectController(resolvedResults, $scope, $rootScope,ProjectService, RegistryService, $stateParams) {
         var vm = this;
+
+        $rootScope.$on('$stateChangeStart',
+            function(){
+              ProjectService.cancel();
+            });
 
         $scope.$on('ngRepeatFinished', function() {
             $('.ui.sortable.celled.table').tablesort();
