@@ -29,6 +29,12 @@
                             <div ng-click="vm.showProjectHistory()" class="ui small blue labeled icon button">
                                 <i class="clock icon"></i> Project History
                             </div>
+                            <span ng-show="!vm.refresh" style="float: right">
+                                <a ng-click="vm.startRefresh(vm.results.projectId)" style="color: #006D95; cursor: pointer; font-weight: bold">Auto Refresh <i class="refresh icon"></i></a>
+                            </span>
+                            <span ng-show="vm.refresh" style="float: right">
+                                <a ng-click="vm.cancelRefresh()" style="color: darkgray; cursor: pointer; font-weight: bold">Auto Refresh <i class="stop icon"></i></a>
+                            </span>
                             <h3 class="ui header">
                                 <span style="float: right">
                                     <a ui-sref="dashboard.projects" style="color: #006D95">Go To Projects <i class="sign out icon"></i></a>
