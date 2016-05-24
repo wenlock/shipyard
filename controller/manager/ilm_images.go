@@ -8,8 +8,8 @@ import (
 	"github.com/samalba/dockerclient"
 	apiClient "github.com/shipyard/shipyard/client"
 	"github.com/shipyard/shipyard/model"
-	"sort"
 	"time"
+	"strings"
 )
 
 var (
@@ -39,6 +39,9 @@ func (m DefaultManager) VerifyIfImageExistsLocally(image model.Image) bool {
 	return false
 }
 
+// Checks to see if the given image is available locally.
+// If it's not, it pulls the image (registry is defined by image.PullableName()).
+// If it is, it skips the pull.
 func (m DefaultManager) PullImage(image model.Image) error {
 
 	// Check to see if the image exists locally, if not, try to pull it.
@@ -189,26 +192,44 @@ func (m DefaultManager) UpdateImage(projectId string, image *model.Image) error 
 	return nil
 }
 
+// Sets the on_success|on_failure tag for the given ilm image and
+// performs a `docker tag` to reflect the changes
 func (m DefaultManager) UpdateImageIlmTags(projectId string, imageId string, ilmTag string) error {
 	// check if exists; if so, update
-	rez, err := m.GetImage(projectId, imageId)
+	image, err := m.GetImage(projectId, imageId)
 	if err != nil && err != ErrImageDoesNotExist {
 		return err
 	}
 
-	if rez == nil {
+	if image == nil {
 		return ErrImageDoesNotExist
 	}
 
-	//sort.Sort(rez.IlmTags)
-	sort.Strings(rez.IlmTags)
-	index := sort.SearchStrings(rez.IlmTags, ilmTag)
-	if len(rez.IlmTags) == index {
-		log.Infof("ilm tag %s was NOT found in array %v, appending", ilmTag, rez.IlmTags)
-		rez.IlmTags = append(rez.IlmTags, ilmTag)
+	// Set the ilm tag to the given image
+	image.IlmTags = []string{ilmTag}
+
+	// TODO: cleanup of old tags
+	// Tag the image. Analogous to `docker tag`
+	imagePullableFormat := image.PullableName()
+	imageRepoFormat := strings.Replace(
+		imagePullableFormat,
+		fmt.Sprintf(":%s", image.Tag),
+		"",
+		1,
+	)
+	err = m.client.TagImage(
+		imagePullableFormat,
+		imageRepoFormat,
+		ilmTag,
+		true,
+	)
+
+	if err != nil {
+		log.Debugf("Could not apply success tag (%s) to image %s", ilmTag, image.PullableName())
+		return err
 	}
 
-	if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": imageId}).Update(rez).RunWrite(m.session); err != nil {
+	if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": imageId}).Update(image).RunWrite(m.session); err != nil {
 		return err
 	}
 
