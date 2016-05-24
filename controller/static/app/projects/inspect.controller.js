@@ -7,10 +7,12 @@
 
     InspectController.$inject = ['resolvedResults', '$scope' , '$rootScope', 'ProjectService', '$interval', 'RegistryService', '$stateParams'];
     function InspectController(resolvedResults, $scope, $rootScope, ProjectService, $interval,RegistryService, $stateParams) {
+
         var vm = this;
 
         $rootScope.$on('$stateChangeStart',
             function(){
+                ProjectService.cancel();
                 vm.refresh = false;
                 if(angular.isDefined(timer)) {
                     $interval.cancel(timer);

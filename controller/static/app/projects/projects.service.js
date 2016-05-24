@@ -8,6 +8,7 @@
     ProjectService.$inject = ['$http', '$q', '$rootScope'];
     function ProjectService($http, $q, $rootScope) {
         var cancelerGetPublicRegistryTags = null;
+        var canceller = null;
 
         return {
             list: function() {
@@ -37,13 +38,17 @@
                 return promise;
             },
             buildResults: function(projectId, testId, buildId) {
+                canceller = $q.defer();
                 var promise = $http
-                    .get('/api/projects/' + projectId + '/tests/' + testId + '/builds/' + buildId + '/results')
+                    .get('/api/projects/' + projectId + '/tests/' + testId + '/builds/' + buildId + '/results', {timeout: canceller.promise})
                     .then(function(response) {
                         console.log(response.data);
                         return response.data;
                     });
                 return promise;
+            },
+            cancel: function() {
+              canceller.resolve();
             },
             update: function(projectId, data) {
                 var promise = $http
