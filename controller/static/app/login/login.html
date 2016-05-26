@@ -13,7 +13,7 @@
             </div>
             <div class="field">
                 <div class="ui left labeled icon input">
-                    <input name="username" placeholder="username" type="text" ng-model="vm.username">
+                    <input id="username" name="username" placeholder="username" type="text" ng-model="vm.username">
                     <i class="user icon"></i>
                 </div>
             </div>
@@ -32,6 +32,7 @@
 </div>
 <script type="text/javascript">
 $(function(){
+    $('#username').focus();
     $('.ui.form')
         .form({
             username: {

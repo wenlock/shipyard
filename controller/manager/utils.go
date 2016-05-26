@@ -2,31 +2,12 @@ package manager
 
 import (
 	"crypto/sha256"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/hex"
 	"strings"
 	"time"
 
-	"github.com/shipyard/shipyard"
+	"github.com/shipyard/shipyard/model"
 )
-
-func getTLSConfig(caCert, sslCert, sslKey []byte) (*tls.Config, error) {
-	// TLS config
-	var tlsConfig tls.Config
-	tlsConfig.InsecureSkipVerify = true
-	certPool := x509.NewCertPool()
-
-	certPool.AppendCertsFromPEM(caCert)
-	tlsConfig.RootCAs = certPool
-	cert, err := tls.X509KeyPair(sslCert, sslKey)
-	if err != nil {
-		return &tlsConfig, err
-	}
-	tlsConfig.Certificates = []tls.Certificate{cert}
-
-	return &tlsConfig, nil
-}
 
 func generateId(n int) string {
 	hash := sha256.New()
@@ -36,9 +17,9 @@ func generateId(n int) string {
 	return mdStr[:n]
 }
 
-func parseClusterNodes(driverStatus [][]string) ([]*shipyard.Node, error) {
-	nodes := []*shipyard.Node{}
-	var node *shipyard.Node
+func parseClusterNodes(driverStatus [][]string) ([]*model.Node, error) {
+	nodes := []*model.Node{}
+	var node *model.Node
 	nodeComplete := false
 	name := ""
 	addr := ""
@@ -80,7 +61,7 @@ func parseClusterNodes(driverStatus [][]string) ([]*shipyard.Node, error) {
 		}
 
 		if nodeComplete {
-			node = &shipyard.Node{
+			node = &model.Node{
 				Name:           name,
 				Addr:           addr,
 				Containers:     containers,
@@ -102,4 +83,13 @@ func parseClusterNodes(driverStatus [][]string) ([]*shipyard.Node, error) {
 	}
 
 	return nodes, nil
+}
+
+func formatRegistryDomain(registryAddress string) string {
+	// TODO: Improve this camel-ostrich with a real regex :)
+	return strings.TrimSuffix(
+		strings.TrimPrefix(
+			strings.TrimPrefix(registryAddress, "https://"),
+			"http://",
+		), "/")
 }

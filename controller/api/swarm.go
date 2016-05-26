@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/shipyard/shipyard"
+	"github.com/shipyard/shipyard/model"
 )
 
 type AuthConfig struct {
@@ -44,6 +44,7 @@ func authConfigB64(username, password, auth, email string) (string, error) {
 
 // pingRegistry Performs a *ping* to a V2 registry by it's `/v2/` endpoint
 // It returns true if the ping is successful.
+// TODO: there are two pingRegistry() funcs one in API and another one in manager. Should refactor.
 func pingRegistry(registry, username, password string) (bool, error) {
 	registryEndpoint := registry + "/v2/"
 
@@ -80,10 +81,10 @@ func pingRegistry(registry, username, password string) (bool, error) {
 
 // findRegistry checks to see if a valid registry is embedded into imageName.
 // It returns the hostname if it was found within imageName.
-func (a *Api) findRegistry(imageName string) (*shipyard.Registry, error) {
+func (a *Api) findRegistry(imageName string) (*model.Registry, error) {
 	possibleRegistry := strings.SplitN(imageName, "/", 2)[0]
 
-	var registry *shipyard.Registry
+	var registry *model.Registry
 
 	if result, err := a.manager.RegistryByAddress("https://" + possibleRegistry); err == nil {
 		registry = result

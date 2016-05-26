@@ -4,14 +4,21 @@
     angular
         .module('shipyard')
         .service('spinnerInterceptor', function($q, $rootScope) {
+            $rootScope.skipSpinnerInterceptorList = [];
             var service = this;
             var nLoadings = 0;
             service.request = function(request) {
+                if ($rootScope.skipSpinnerInterceptorList.length > 0) {
+                    return request;
+                }
                 nLoadings += 1;
                 $rootScope.isLoadingView = true;
                 return request;
-            }
+            };
             service.response = function(response) {
+                if ($rootScope.skipSpinnerInterceptorList.length > 0) {
+                    return response;
+                }
                 nLoadings -= 1;
                 if (nLoadings === 0) {
                     $rootScope.isLoadingView = false;

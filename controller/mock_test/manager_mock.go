@@ -3,12 +3,11 @@ package mock_test
 import (
 	"github.com/gorilla/sessions"
 	"github.com/samalba/dockerclient"
-	"github.com/shipyard/shipyard"
-	"github.com/shipyard/shipyard/auth"
 	"github.com/shipyard/shipyard/controller/manager"
-	"github.com/shipyard/shipyard/dockerhub"
 	"github.com/shipyard/shipyard/model"
-	registry "github.com/shipyard/shipyard/registry/v1"
+	"github.com/shipyard/shipyard/model/dockerhub"
+	registry "github.com/shipyard/shipyard/model/registry/v1"
+	"github.com/shipyard/shipyard/utils/auth"
 )
 
 type MockManager struct{}
@@ -29,11 +28,11 @@ func (m MockManager) RemoveServiceKey(key string) error {
 	return nil
 }
 
-func (m MockManager) SaveEvent(event *shipyard.Event) error {
+func (m MockManager) SaveEvent(event *model.Event) error {
 	return nil
 }
 
-func (m MockManager) Events(limit int) ([]*shipyard.Event, error) {
+func (m MockManager) Events(limit int) ([]*model.Event, error) {
 	return getTestEvents(), nil
 }
 
@@ -133,30 +132,30 @@ func (m MockManager) StoreKey() string {
 	return ""
 }
 
-func (m MockManager) AddRegistry(registry *shipyard.Registry) error {
+func (m MockManager) AddRegistry(registry *model.Registry) error {
 	return nil
 }
 
-func (m MockManager) Registries() ([]*shipyard.Registry, error) {
-	return []*shipyard.Registry{
+func (m MockManager) Registries() ([]*model.Registry, error) {
+	return []*model.Registry{
 		TestRegistry,
 	}, nil
 }
 
-func (m MockManager) Registry(name string) (*shipyard.Registry, error) {
+func (m MockManager) Registry(name string) (*model.Registry, error) {
 	return TestRegistry, nil
 }
 
-func (m MockManager) RegistryByAddress(addr string) (*shipyard.Registry, error) {
+func (m MockManager) RegistryByAddress(addr string) (*model.Registry, error) {
 	return TestRegistry, nil
 }
 
-func (m MockManager) RemoveRegistry(registry *shipyard.Registry) error {
+func (m MockManager) RemoveRegistry(registry *model.Registry) error {
 	return nil
 }
 
-func (m MockManager) Nodes() ([]*shipyard.Node, error) {
-	return []*shipyard.Node{
+func (m MockManager) Nodes() ([]*model.Node, error) {
+	return []*model.Node{
 		TestNode,
 	}, nil
 }
@@ -175,19 +174,19 @@ func (m MockManager) DeleteRepository(name string) error {
 	return nil
 }
 
-func (m MockManager) Node(name string) (*shipyard.Node, error) {
+func (m MockManager) Node(name string) (*model.Node, error) {
 	return TestNode, nil
 }
 
-func (m MockManager) CreateConsoleSession(c *shipyard.ConsoleSession) error {
+func (m MockManager) CreateConsoleSession(c *model.ConsoleSession) error {
 	return nil
 }
 
-func (m MockManager) RemoveConsoleSession(c *shipyard.ConsoleSession) error {
+func (m MockManager) RemoveConsoleSession(c *model.ConsoleSession) error {
 	return nil
 }
 
-func (m MockManager) ConsoleSession(token string) (*shipyard.ConsoleSession, error) {
+func (m MockManager) ConsoleSession(token string) (*model.ConsoleSession, error) {
 	return TestConsoleSession, nil
 }
 
@@ -202,81 +201,3 @@ func (m MockManager) GetAuthenticator() auth.Authenticator {
 func (m MockManager) ScaleContainer(id string, numInstances int) manager.ScaleResult {
 	return manager.ScaleResult{Scaled: []string{"9c3c7dd2199a95cce29950b612ecf918ae278a42e53e10f6cccb752b6fbcd8b3"}, Errors: []string{"500 Internal Server Error: no resources available to schedule container"}}
 }
-
-// TODO: add mock objects for Projects and Images (ILM) to helpers.go
-func (m MockManager) Projects() ([]*model.Project, error) {
-	return nil, nil
-}
-
-func (m MockManager) Project(name string) (*model.Project, error) {
-	return nil, nil
-}
-
-func (m MockManager) SaveProject(project *model.Project) error {
-	return nil
-}
-
-func (m MockManager) UpdateProject(project *model.Project) error {
-	return nil
-}
-
-func (m MockManager) DeleteProject(project *model.Project) error {
-	return nil
-}
-
-func (m MockManager) Images() ([]*model.Image, error) {
-	return nil, nil
-}
-
-func (m MockManager) ImagesByProjectId(projectId string) ([]*model.Image, error) {
-	return nil, nil
-}
-
-func (m MockManager) Image(name string) (*model.Image, error) {
-	return nil, nil
-}
-
-func (m MockManager) SaveImage(image *model.Image) error {
-	return nil
-}
-
-func (m MockManager) UpdateImage(image *model.Image) error {
-	return nil
-}
-
-func (m MockManager) DeleteImage(image *model.Image) error {
-	return nil
-}
-
-func (m MockManager) DeleteAllProjects() error {
-	return nil
-}
-
-func (m MockManager) DeleteAllImages() error {
-	return nil
-}
-
-func (m MockManager) GetTest(projectId, testId string) (*model.Test, error) { return nil, nil }
-func (m MockManager) GetTests(projectId string) ([]*model.Test, error)      { return nil, nil }
-func (m MockManager) CreateTest(projectId string, test *model.Test) error   { return nil }
-func (m MockManager) UpdateTest(projectId string, test *model.Test) error   { return nil }
-func (m MockManager) DeleteTest(projectId string, testId string) error      { return nil }
-func (m MockManager) DeleteAllTests() error                                 { return nil }
-
-func (m MockManager) GetResults(projectId string) ([]*model.Result, error)        { return nil, nil }
-func (m MockManager) GetResult(projectId, resultId string) (*model.Result, error) { return nil, nil }
-func (m MockManager) CreateResult(projectId string, result *model.Result) error   { return nil }
-func (m MockManager) UpdateResult(projectId string, result *model.Result) error   { return nil }
-func (m MockManager) DeleteResult(projectId string, resultId string) error        { return nil }
-func (m MockManager) DeleteAllResults() error                                     { return nil }
-
-func (m MockManager) GetProviders() ([]*model.Provider, error)               { return nil, nil }
-func (m MockManager) GetProvider(providerId string) (*model.Provider, error) { return nil, nil }
-func (m MockManager) CreateProvider(provider *model.Provider) error          { return nil }
-func (m MockManager) UpdateProvider(provider *model.Provider) error          { return nil }
-func (m MockManager) DeleteProvider(providerId string) error                 { return nil }
-func (m MockManager) GetJobsByProviderId(providerId string) ([]*model.ProviderJob, error) {
-	return nil, nil
-}
-func (m MockManager) AddJobToProviderId(providerId string, job *model.ProviderJob) error { return nil }
-func (m MockManager) DeleteAllProviders() error                                          { return nil }

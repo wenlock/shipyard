@@ -6,20 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
-	"strings"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	r "github.com/dancannon/gorethink"
 	"github.com/gorilla/sessions"
 	"github.com/samalba/dockerclient"
-	"github.com/shipyard/shipyard"
-	"github.com/shipyard/shipyard/auth"
-	"github.com/shipyard/shipyard/dockerhub"
 	"github.com/shipyard/shipyard/model"
+	"github.com/shipyard/shipyard/model/dockerhub"
+	"github.com/shipyard/shipyard/utils/auth"
 	"github.com/shipyard/shipyard/version"
+	"net"
+	"net/http"
+	"strings"
+	"time"
 )
 
 const (
@@ -32,6 +30,7 @@ const (
 	tblNameResults   = "results"
 	tblNameTests     = "tests"
 	tblNameProviders = "providers"
+	tblNameBuilds    = "builds"
 
 	tblNameRoles       = "roles"
 	tblNameServiceKeys = "service_keys"
@@ -59,6 +58,10 @@ var (
 	ErrResultExists       = errors.New("result already exists")
 	ErrResultDoesNotExist = errors.New("result does not exist")
 
+	ErrBuildExists             = errors.New("build already exists")
+	ErrBuildDoesNotExist       = errors.New("build does not exist")
+	ErrBuildActionNotSupported = errors.New("build action is not supported")
+
 	ErrTestExists          = errors.New("test already exists")
 	ErrTestDoesNotExist    = errors.New("test does not exist")
 	ErrProjectTestsProblem = errors.New("problem retrieving tests for project")
@@ -73,6 +76,7 @@ var (
 	ErrExtensionDoesNotExist      = errors.New("extension does not exist")
 	ErrWebhookKeyDoesNotExist     = errors.New("webhook key does not exist")
 	ErrRegistryDoesNotExist       = errors.New("registry does not exist")
+	ErrCannotPingRegistry         = errors.New("there was a problem connecting to registry")
 	ErrConsoleSessionDoesNotExist = errors.New("console session does not exist")
 	store                         = sessions.NewCookieStore([]byte(storeKey))
 )
@@ -109,12 +113,15 @@ type (
 		DeleteProject(project *model.Project) error
 		DeleteAllProjects() error
 
-		Images() ([]*model.Image, error)
-		ImagesByProjectId(projectId string) ([]*model.Image, error)
-		Image(name string) (*model.Image, error)
-		SaveImage(image *model.Image) error
-		UpdateImage(image *model.Image) error
-		DeleteImage(image *model.Image) error
+		VerifyIfImageExistsLocally(image model.Image) bool
+		PullImage(image model.Image) error
+
+		GetImages(projectId string) ([]*model.Image, error)
+		GetImage(projectId, imageId string) (*model.Image, error)
+		CreateImage(projectId string, image *model.Image) error
+		UpdateImage(projectId string, image *model.Image) error
+		UpdateImageIlmTags(projectId string, imageId string, ilmTag string) error
+		DeleteImage(projectId string, imageId string) error
 		DeleteAllImages() error
 
 		GetTests(projectId string) ([]*model.Test, error)
@@ -124,12 +131,25 @@ type (
 		DeleteTest(projectId string, testId string) error
 		DeleteAllTests() error
 
-		GetResults(projectId string) ([]*model.Result, error)
+		GetResults(projectId string) (*model.Result, error)
 		GetResult(projectId, resultId string) (*model.Result, error)
 		CreateResult(projectId string, result *model.Result) error
 		UpdateResult(projectId string, result *model.Result) error
 		DeleteResult(projectId string, resultId string) error
 		DeleteAllResults() error
+
+		GetBuilds(projectId string, testId string) ([]*model.Build, error)
+		GetBuild(projectId string, testId string, buildId string) (*model.Build, error)
+		GetBuildById(buildId string) (*model.Build, error)
+		GetBuildStatus(projectId string, testId string, buildId string) (string, error)
+		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
+
+		CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error)
+		UpdateBuildResults(buildId string, results []*model.BuildResult) error
+		UpdateBuildStatus(buildId string, status string) error
+		UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error
+		DeleteBuild(projectId string, testId string, buildId string) error
+		DeleteAllBuilds() error
 
 		GetProviders() ([]*model.Provider, error)
 		GetProvider(providerId string) (*model.Provider, error)
@@ -148,8 +168,8 @@ type (
 		ScaleContainer(id string, numInstances int) ScaleResult
 		SaveServiceKey(key *auth.ServiceKey) error
 		RemoveServiceKey(key string) error
-		SaveEvent(event *shipyard.Event) error
-		Events(limit int) ([]*shipyard.Event, error)
+		SaveEvent(event *model.Event) error
+		Events(limit int) ([]*model.Event, error)
 		PurgeEvents() error
 		ServiceKey(key string) (*auth.ServiceKey, error)
 		ServiceKeys() ([]*auth.ServiceKey, error)
@@ -165,18 +185,18 @@ type (
 		DeleteWebhookKey(id string) error
 		DockerClient() *dockerclient.DockerClient
 
-		Nodes() ([]*shipyard.Node, error)
-		Node(name string) (*shipyard.Node, error)
+		Nodes() ([]*model.Node, error)
+		Node(name string) (*model.Node, error)
 
-		AddRegistry(registry *shipyard.Registry) error
-		RemoveRegistry(registry *shipyard.Registry) error
-		Registries() ([]*shipyard.Registry, error)
-		Registry(name string) (*shipyard.Registry, error)
-		RegistryByAddress(addr string) (*shipyard.Registry, error)
+		AddRegistry(registry *model.Registry) error
+		RemoveRegistry(registry *model.Registry) error
+		Registries() ([]*model.Registry, error)
+		Registry(name string) (*model.Registry, error)
+		RegistryByAddress(addr string) (*model.Registry, error)
 
-		CreateConsoleSession(c *shipyard.ConsoleSession) error
-		RemoveConsoleSession(c *shipyard.ConsoleSession) error
-		ConsoleSession(token string) (*shipyard.ConsoleSession, error)
+		CreateConsoleSession(c *model.ConsoleSession) error
+		RemoveConsoleSession(c *model.ConsoleSession) error
+		ConsoleSession(token string) (*model.ConsoleSession, error)
 		ValidateConsoleSessionToken(containerId, token string) bool
 	}
 )
@@ -186,7 +206,6 @@ func NewManager(addr string, database string, authKey string, client *dockerclie
 		Address:  addr,
 		Database: database,
 		AuthKey:  authKey,
-		MaxIdle:  10,
 	})
 	if err != nil {
 		return nil, err
@@ -223,12 +242,17 @@ func (m DefaultManager) StoreKey() string {
 
 func (m DefaultManager) initdb() {
 	// create tables if needed
-	tables := []string{tblNameConfig, tblNameEvents, tblNameAccounts, tblNameRoles, tblNameConsole, tblNameServiceKeys, tblNameRegistries, tblNameExtensions, tblNameWebhookKeys, tblNameProjects, tblNameImages, tblNameResults, tblNameTests, tblNameProviders}
+	tables := []string{tblNameConfig, tblNameEvents, tblNameAccounts, tblNameRoles, tblNameConsole, tblNameServiceKeys, tblNameRegistries, tblNameExtensions, tblNameWebhookKeys, tblNameProjects, tblNameImages, tblNameResults, tblNameTests, tblNameProviders, tblNameBuilds}
 	for _, tbl := range tables {
-		_, err := r.Table(tbl).Run(m.session)
+		res, err := r.Table(tbl).Run(m.session)
 		if err != nil {
-			if _, err := r.DB(m.database).TableCreate(tbl).Run(m.session); err != nil {
+			ires, err := r.DB(m.database).TableCreate(tbl).Run(m.session)
+			if err != nil {
 				log.Fatalf("error creating table: %s", err)
+			}
+			ires.Close()
+			if res != nil {
+				res.Close()
 			}
 		}
 	}
@@ -241,7 +265,7 @@ func (m DefaultManager) init() error {
 }
 
 func (m DefaultManager) logEvent(eventType, message string, tags []string) {
-	evt := &shipyard.Event{
+	evt := &model.Event{
 		Type:    eventType,
 		Time:    time.Now(),
 		Message: message,
@@ -279,7 +303,7 @@ func (m DefaultManager) uploadUsage() {
 			}
 		}
 	}
-	usage := &shipyard.Usage{
+	usage := &model.Usage{
 		ID:      id,
 		Version: version.Version,
 	}
@@ -363,7 +387,7 @@ func (m DefaultManager) RemoveServiceKey(key string) error {
 	return nil
 }
 
-func (m DefaultManager) SaveEvent(event *shipyard.Event) error {
+func (m DefaultManager) SaveEvent(event *model.Event) error {
 	if _, err := r.Table(tblNameEvents).Insert(event).RunWrite(m.session); err != nil {
 		return err
 	}
@@ -371,16 +395,17 @@ func (m DefaultManager) SaveEvent(event *shipyard.Event) error {
 	return nil
 }
 
-func (m DefaultManager) Events(limit int) ([]*shipyard.Event, error) {
+func (m DefaultManager) Events(limit int) ([]*model.Event, error) {
 	t := r.Table(tblNameEvents).OrderBy(r.Desc("Time"))
 	if limit > -1 {
 		t.Limit(limit)
 	}
 	res, err := t.Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
-	events := []*shipyard.Event{}
+	events := []*model.Event{}
 	if err := res.All(&events); err != nil {
 		return nil, err
 	}
@@ -396,6 +421,7 @@ func (m DefaultManager) PurgeEvents() error {
 
 func (m DefaultManager) ServiceKey(key string) (*auth.ServiceKey, error) {
 	res, err := r.Table(tblNameServiceKeys).Filter(map[string]string{"key": key}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -412,6 +438,7 @@ func (m DefaultManager) ServiceKey(key string) (*auth.ServiceKey, error) {
 
 func (m DefaultManager) ServiceKeys() ([]*auth.ServiceKey, error) {
 	res, err := r.Table(tblNameServiceKeys).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -424,6 +451,7 @@ func (m DefaultManager) ServiceKeys() ([]*auth.ServiceKey, error) {
 
 func (m DefaultManager) Accounts() ([]*auth.Account, error) {
 	res, err := r.Table(tblNameAccounts).OrderBy(r.Asc("username")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -436,6 +464,7 @@ func (m DefaultManager) Accounts() ([]*auth.Account, error) {
 
 func (m DefaultManager) Account(username string) (*auth.Account, error) {
 	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -501,6 +530,7 @@ func (m DefaultManager) SaveAccount(account *auth.Account) error {
 
 func (m DefaultManager) DeleteAccount(account *auth.Account) error {
 	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"id": account.ID}).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -582,7 +612,9 @@ func (m DefaultManager) NewAuthToken(username string, userAgent string) (*auth.A
 		tokens = append(tokens, token)
 	}
 	// delete token
-	if _, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Filter(r.Row.Field("user_agent").Eq(userAgent)).Delete().Run(m.session); err != nil {
+	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Filter(r.Row.Field("user_agent").Eq(userAgent)).Delete().Run(m.session)
+	defer res.Close()
+	if err != nil {
 		return nil, err
 	}
 	// add
@@ -642,7 +674,9 @@ func (m DefaultManager) ChangePassword(username, password string) error {
 		return err
 	}
 
-	if _, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Update(map[string]string{"password": hash}).Run(m.session); err != nil {
+	res, err := r.Table(tblNameAccounts).Filter(map[string]string{"username": username}).Update(map[string]string{"password": hash}).Run(m.session)
+	defer res.Close()
+	if err != nil {
 		return err
 	}
 
@@ -653,6 +687,7 @@ func (m DefaultManager) ChangePassword(username, password string) error {
 
 func (m DefaultManager) WebhookKey(key string) (*dockerhub.WebhookKey, error) {
 	res, err := r.Table(tblNameWebhookKeys).Filter(map[string]string{"key": key}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -674,6 +709,7 @@ func (m DefaultManager) WebhookKey(key string) (*dockerhub.WebhookKey, error) {
 
 func (m DefaultManager) WebhookKeys() ([]*dockerhub.WebhookKey, error) {
 	res, err := r.Table(tblNameWebhookKeys).OrderBy(r.Asc("image")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -716,6 +752,7 @@ func (m DefaultManager) DeleteWebhookKey(id string) error {
 
 	}
 	res, err := r.Table(tblNameWebhookKeys).Get(key.ID).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 
@@ -731,7 +768,7 @@ func (m DefaultManager) DeleteWebhookKey(id string) error {
 	return nil
 }
 
-func (m DefaultManager) Nodes() ([]*shipyard.Node, error) {
+func (m DefaultManager) Nodes() ([]*model.Node, error) {
 	info, err := m.client.Info()
 	if err != nil {
 		return nil, err
@@ -745,7 +782,7 @@ func (m DefaultManager) Nodes() ([]*shipyard.Node, error) {
 	return nodes, nil
 }
 
-func (m DefaultManager) Node(name string) (*shipyard.Node, error) {
+func (m DefaultManager) Node(name string) (*model.Node, error) {
 	nodes, err := m.Nodes()
 	if err != nil {
 		return nil, err
@@ -760,758 +797,12 @@ func (m DefaultManager) Node(name string) (*shipyard.Node, error) {
 	return nil, nil
 }
 
-// methods related to the Project structure
-func (m DefaultManager) Projects() ([]*model.Project, error) {
-	// TODO: consider making sorting customizable
-	// TODO: should filter by authorization
-	// Return all projects **WITHOUT** their images embedded
-	res, err := r.Table(tblNameProjects).OrderBy(r.Asc("creationTime")).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	projects := []*model.Project{}
-	if err := res.All(&projects); err != nil {
-		return nil, err
-	}
-
-	return projects, nil
-}
-
-func (m DefaultManager) Project(id string) (*model.Project, error) {
-
-	var project *model.Project
-
-	res, err := r.Table(tblNameProjects).Filter(map[string]string{"id": id}).Run(m.session)
-
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrProjectDoesNotExist
-	}
-	if err := res.One(&project); err != nil {
-		return nil, err
-	}
-
-	project.Images, err = m.ImagesByProjectId(project.ID)
-
-	if err != nil {
-		return nil, ErrProjectImagesProblem
-	}
-	project.Tests, err = m.GetTests(project.ID)
-
-	if err != nil {
-		return nil, ErrProjectTestsProblem
-	}
-
-	return project, nil
-}
-
-func (m DefaultManager) SaveProject(project *model.Project) error {
-	var eventType string
-	proj, err := m.Project(project.ID)
-
-	if err != nil && err != ErrProjectDoesNotExist {
-		return err
-	}
-	if proj != nil {
-		return ErrProjectExists
-	}
-	project.CreationTime = time.Now().UTC()
-	project.UpdateTime = project.CreationTime
-	// TODO: find a way to retrieve the current user
-	project.Author = "author"
-
-	//create the project
-	response, err := r.Table(tblNameProjects).Insert(project).RunWrite(m.session)
-
-	if err != nil {
-		return err
-	}
-
-	// rethinkDB returns the ID as the first element of the GeneratedKeys slice
-	// TODO: this method seems brittle, should contact the gorethink dev team for insight on this.
-	project.ID = func() string {
-		if len(response.GeneratedKeys) > 0 {
-			return string(response.GeneratedKeys[0])
-		}
-		return ""
-	}()
-
-	//add the project ID to the images and save them in the Images table
-	// TODO: investigate how to do a bulk insert
-	for _, img := range project.Images {
-		img.ProjectID = project.ID
-		response, err = r.Table(tblNameImages).Insert(img).RunWrite(m.session)
-
-		if err != nil {
-			return err
-		}
-	}
-	//add project ID to the tests and save them in the Tests table
-	// TODO: investigate how to do a bulk insert
-	for _, test := range project.Tests {
-		test.ProjectId = project.ID
-		response, err = r.Table(tblNameTests).Insert(test).RunWrite(m.session)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	eventType = "add-project"
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", project.ID, project.Name), []string{"security"})
-	return nil
-}
-
-func (m DefaultManager) UpdateProject(project *model.Project) error {
-	var eventType string
-	// check if exists; if so, update
-	proj, err := m.Project(project.ID)
-	if err != nil && err != ErrProjectDoesNotExist {
-		return err
-	}
-	// update
-	if proj != nil {
-		updates := map[string]interface{}{
-			"name":        project.Name,
-			"description": project.Description,
-			"status":      project.Status,
-			"needsBuild":  project.NeedsBuild,
-			"updateTime":  time.Now().UTC(),
-			// TODO: find a way to retrieve the current user
-			"updatedBy": "updater",
-		}
-
-		//TODO: Find a more elegant approach
-		// Retrieve images by projectId and delete them by their primary key id generated by rethink
-		res, err := r.Table(tblNameImages).Filter(map[string]string{"projectId": proj.ID}).Run(m.session)
-		if err != nil {
-			return err
-		}
-		oldImages := []*model.Image{}
-		if err := res.All(&oldImages); err != nil {
-			return err
-		}
-
-		// Remove existing images for this project
-		for _, oldImage := range oldImages {
-			if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": oldImage.ID}).Delete().Run(m.session); err != nil {
-				return err
-			}
-		}
-
-		// Insert all the images that are incoming from the request which should have the new and old ones
-		// TODO: investigate how we can do bulk insert
-		for _, newImage := range project.Images {
-			newImage.ProjectID = proj.ID
-			if _, err := r.Table(tblNameImages).Insert(newImage).RunWrite(m.session); err != nil {
-				return err
-			}
-		}
-
-		//TODO: Find a more elegant approach
-		// Retrieve tests by projectId and delete them by their primary key id generated by rethink
-		res, err = r.Table(tblNameTests).Filter(map[string]string{"projectId": proj.ID}).Run(m.session)
-		if err != nil {
-			return err
-		}
-		oldTests := []*model.Test{}
-		if err := res.All(&oldTests); err != nil {
-			return err
-		}
-
-		// Remove existing tests for this project
-		for _, oldTest := range oldTests {
-			if _, err := r.Table(tblNameTests).Filter(map[string]string{"id": oldTest.ID}).Delete().Run(m.session); err != nil {
-				return err
-			}
-		}
-
-		// Insert all the tests that are incoming from the request which should have the new and old ones
-		// TODO: investigate how we can do bulk insert
-		for _, newTest := range project.Tests {
-			newTest.ProjectId = proj.ID
-			if _, err := r.Table(tblNameTests).Insert(newTest).RunWrite(m.session); err != nil {
-				return err
-			}
-		}
-		if _, err := r.Table(tblNameProjects).Filter(map[string]string{"id": project.ID}).Update(updates).RunWrite(m.session); err != nil {
-			return err
-		}
-
-		eventType = "update-project"
-	}
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", project.ID, project.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) DeleteProject(project *model.Project) error {
-	res, err := r.Table(tblNameProjects).Filter(map[string]string{"id": project.ID}).Delete().Run(m.session)
-	if err != nil {
-		return err
-	}
-
-	if res.IsNil() {
-		return ErrProjectDoesNotExist
-	}
-	res, err = r.Table(tblNameImages).Filter(map[string]string{"projectId": project.ID}).Run(m.session)
-	if err != nil {
-		return err
-	}
-	imagesToDelete := []*model.Image{}
-	if err := res.All(&imagesToDelete); err != nil {
-		return err
-	}
-
-	// Remove existing images for this project
-	for _, imgToDelete := range imagesToDelete {
-		if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": imgToDelete.ID}).Delete().Run(m.session); err != nil {
-			return err
-		}
-	}
-
-	res, err = r.Table(tblNameTests).Filter(map[string]string{"projectId": project.ID}).Run(m.session)
-	if err != nil {
-		return err
-	}
-	testsToDelete := []*model.Test{}
-	if err := res.All(&testsToDelete); err != nil {
-		return err
-	}
-
-	// Remove existing tests for this project
-	for _, testToDelete := range testsToDelete {
-		if _, err := r.Table(tblNameTests).Filter(map[string]string{"id": testToDelete.ID}).Delete().Run(m.session); err != nil {
-			return err
-		}
-	}
-
-	m.logEvent("delete-project", fmt.Sprintf("id=%s, name=%s", project.ID, project.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) DeleteAllProjects() error {
-	_, err := r.Table(tblNameProjects).Delete().Run(m.session)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// end methods related to the project structure
-
-//methods related to the Image structure
-func (m DefaultManager) Images() ([]*model.Image, error) {
-	// TODO: sort by datetime once it is implemented
-	res, err := r.Table(tblNameImages).OrderBy(r.Asc("name")).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	images := []*model.Image{}
-	if err := res.All(&images); err != nil {
-		return nil, err
-	}
-	return images, nil
-}
-
-func (m DefaultManager) Image(id string) (*model.Image, error) {
-	res, err := r.Table(tblNameImages).Filter(map[string]string{"id": id}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrImageDoesNotExist
-	}
-	var image *model.Image
-	if err := res.One(&image); err != nil {
-		return nil, err
-	}
-	return image, nil
-}
-
-func (m DefaultManager) ImagesByProjectId(projectId string) ([]*model.Image, error) {
-	res, err := r.Table(tblNameImages).Filter(map[string]string{"projectId": projectId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	images := []*model.Image{}
-	if err := res.All(&images); err != nil {
-		return nil, err
-	}
-	return images, nil
-}
-
-func (m DefaultManager) SaveImage(image *model.Image) error {
-	var eventType string
-
-	img, err := m.Image(image.ID)
-	if err != nil && err != ErrImageDoesNotExist {
-		return err
-	}
-	if img != nil {
-		return ErrImageExists
-	}
-	if _, err := r.Table(tblNameImages).Insert(image).RunWrite(m.session); err != nil {
-		return err
-	}
-	eventType = "add-image"
-
-	// TODO: consider adding "id" from the rethink GeneratedKeys to the Image object
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", image.ID, image.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) UpdateImage(image *model.Image) error {
-	var eventType string
-
-	// check if exists; if so, update
-	img, err := m.Image(image.ID)
-	if err != nil && err != ErrImageDoesNotExist {
-		return err
-	}
-	// update
-	if img != nil {
-		updates := map[string]interface{}{
-			"name":           image.Name,
-			"imageId":        image.ImageId,
-			"tag":            image.Tag,
-			"description":    image.Description,
-			"location":       image.Location,
-			"skipImageBuild": image.SkipImageBuild,
-			"projectId":      image.ProjectID,
-		}
-
-		if _, err := r.Table(tblNameImages).Filter(map[string]string{"id": image.ID}).Update(updates).RunWrite(m.session); err != nil {
-			return err
-		}
-
-		eventType = "update-image"
-	}
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", image.ID, image.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) DeleteImage(image *model.Image) error {
-	res, err := r.Table(tblNameImages).Filter(map[string]string{"id": image.ID}).Delete().Run(m.session)
-	if err != nil {
-		return err
-	}
-
-	if res.IsNil() {
-		return ErrImageDoesNotExist
-	}
-
-	m.logEvent("delete-image", fmt.Sprintf("id=%s, name=%s", image.ID, image.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) DeleteAllImages() error {
-	_, err := r.Table(tblNameImages).Delete().Run(m.session)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-//methods related to Test structure
-
-func (m DefaultManager) GetTests(projectId string) ([]*model.Test, error) {
-
-	res, err := r.Table(tblNameTests).Filter(map[string]string{"projectId": projectId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	tests := []*model.Test{}
-	if err := res.All(&tests); err != nil {
-		return nil, err
-	}
-	return tests, nil
-}
-
-func (m DefaultManager) GetTest(projectId, testId string) (*model.Test, error) {
-	var test *model.Test
-	res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrTestDoesNotExist
-	}
-	if err := res.One(&test); err != nil {
-		return nil, err
-	}
-
-	return test, nil
-}
-
-func (m DefaultManager) CreateTest(projectId string, test *model.Test) error {
-	var eventType string
-	test.ProjectId = projectId
-	response, err := r.Table(tblNameTests).Insert(test).RunWrite(m.session)
-	if err != nil {
-
-		return err
-	}
-	test.ID = func() string {
-		if len(response.GeneratedKeys) > 0 {
-			return string(response.GeneratedKeys[0])
-		}
-		return ""
-	}()
-	eventType = "add-test"
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s", test.ID), []string{"security"})
-	return nil
-}
-
-func (m DefaultManager) UpdateTest(projectId string, test *model.Test) error {
-	var eventType string
-	// check if exists; if so, update
-	rez, err := m.GetTest(projectId, test.ID)
-	if err != nil && err != ErrTestDoesNotExist {
-		return err
-	}
-	// update
-	if rez != nil {
-		updates := map[string]interface{}{
-			"projectId":        test.ProjectId,
-			"description":      test.Description,
-			"name":             test.Name,
-			"targets":          test.Targets,
-			"selectedTestType": test.SelectedTestType,
-			"providerId":       test.ProviderId,
-		}
-		if _, err := r.Table(tblNameTests).Filter(map[string]string{"id": test.ID}).Update(updates).RunWrite(m.session); err != nil {
-			return err
-		}
-
-		eventType = "update-test"
-	}
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s", test.ID), []string{"security"})
-	return nil
-}
-
-func (m DefaultManager) DeleteTest(projectId string, testId string) error {
-	res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testId}).Delete().Run(m.session)
-	if err != nil {
-		return err
-	}
-
-	if res.IsNil() {
-		return ErrTestDoesNotExist
-	}
-
-	m.logEvent("delete-test", fmt.Sprintf("id=%s", testId), []string{"security"})
-	return nil
-}
-func (m DefaultManager) DeleteAllTests() error {
-	_, err := r.Table(tblNameTests).Delete().Run(m.session)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Methods related to the results structure
-func (m DefaultManager) GetResults(projectId string) ([]*model.Result, error) {
-
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"projectId": projectId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	results := []*model.Result{}
-	if err := res.All(&results); err != nil {
-		return nil, err
-	}
-	return results, nil
-}
-
-func (m DefaultManager) GetResult(projectId, resultId string) (*model.Result, error) {
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrImageDoesNotExist
-	}
-	var result *model.Result
-	if err := res.One(&result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (m DefaultManager) CreateResult(projectId string, result *model.Result) error {
-	var eventType string
-
-	result, err := m.GetResult(projectId, result.ID)
-	if err != nil && err != ErrResultDoesNotExist {
-		return err
-	}
-
-	if result != nil {
-		return ErrResultExists
-	}
-
-	result.ProjectId = projectId
-	response, err := r.Table(tblNameResults).Insert(result).RunWrite(m.session)
-
-	if err != nil {
-		return err
-	}
-	eventType = "add-result"
-
-	result.ID = func() string {
-		if len(response.GeneratedKeys) > 0 {
-			return string(response.GeneratedKeys[0])
-		}
-		return ""
-	}()
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s", result.ID), []string{"security"})
-
-	return nil
-}
-func (m DefaultManager) UpdateResult(projectId string, result *model.Result) error {
-	var eventType string
-
-	// check if exists; if so, update
-	rez, err := m.GetResult(projectId, result.ID)
-	if err != nil && err != ErrResultDoesNotExist {
-		return err
-	}
-	// update
-	if rez != nil {
-		updates := map[string]interface{}{
-			"projectId":      result.ProjectId,
-			"description":    result.Description,
-			"buildId":        result.BuildId,
-			"runDate":        result.RunDate,
-			"endDate":        result.EndDate,
-			"createDate":     result.CreateDate,
-			"author":         result.Author,
-			"projectVersion": result.ProjectVersion,
-			"lastTagApplied": result.LastTagApplied,
-			"lastUpdate":     result.LastUpdate,
-			"updater":        result.Updater,
-			"testResults":    result.TestResults,
-		}
-
-		if _, err := r.Table(tblNameResults).Filter(map[string]string{"id": result.ID}).Update(updates).RunWrite(m.session); err != nil {
-			return err
-		}
-
-		eventType = "update-result"
-	}
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s", result.ID), []string{"security"})
-
-	return nil
-}
-func (m DefaultManager) DeleteResult(projectId string, resultId string) error {
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Delete().Run(m.session)
-	if err != nil {
-		return err
-	}
-
-	if res.IsNil() {
-		return ErrResultDoesNotExist
-	}
-
-	m.logEvent("delete-result", fmt.Sprintf("id=%s", resultId), []string{"security"})
-
-	return nil
-}
-func (m DefaultManager) DeleteAllResults() error {
-	_, err := r.Table(tblNameResults).Delete().Run(m.session)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Methods related to the Provider structure
-func (m DefaultManager) GetProviders() ([]*model.Provider, error) {
-
-	res, err := r.Table(tblNameProviders).OrderBy(r.Asc("name")).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	providers := []*model.Provider{}
-	if err := res.All(&providers); err != nil {
-		return nil, err
-	}
-	return providers, nil
-}
-
-func (m DefaultManager) GetProvider(providerId string) (*model.Provider, error) {
-	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrProviderDoesNotExist
-	}
-	var provider *model.Provider
-	if err := res.One(&provider); err != nil {
-		return nil, err
-	}
-	return provider, nil
-}
-
-func (m DefaultManager) CreateProvider(provider *model.Provider) error {
-	var eventType string
-
-	prov, err := m.GetProvider(provider.ID)
-	if err != nil && err != ErrProviderDoesNotExist {
-		return err
-	}
-	if prov != nil {
-		return ErrProviderExists
-	}
-
-	response, err := r.Table(tblNameProviders).Insert(provider).RunWrite(m.session)
-
-	if err != nil {
-		return err
-	}
-	eventType = "add-provider"
-
-	provider.ID = func() string {
-		if len(response.GeneratedKeys) > 0 {
-			return string(response.GeneratedKeys[0])
-		}
-		return ""
-	}()
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", provider.ID, provider.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) UpdateProvider(provider *model.Provider) error {
-	var eventType string
-
-	// check if exists; if so, update
-	prov, err := m.GetProvider(provider.ID)
-	if err != nil && err != ErrProviderDoesNotExist {
-		return err
-	}
-	// update
-
-	if prov != nil {
-		updates := map[string]interface{}{
-			"name":              provider.Name,
-			"availableJobTypes": provider.AvailableJobTypes,
-			"config":            provider.Config,
-			"url":               provider.Url,
-			"providerJobs":      provider.ProviderJobs,
-		}
-
-		if _, err := r.Table(tblNameProviders).Filter(map[string]string{"id": provider.ID}).Update(updates).RunWrite(m.session); err != nil {
-			return err
-		}
-
-		eventType = "update-provider"
-	}
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", provider.ID, provider.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) DeleteProvider(providerId string) error {
-	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Delete().Run(m.session)
-	if err != nil {
-		return err
-	}
-
-	if res.IsNil() {
-		return ErrProviderDoesNotExist
-	}
-
-	m.logEvent("delete-provider", fmt.Sprintf("id=%s", providerId), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) GetJobsByProviderId(providerId string) ([]*model.ProviderJob, error) {
-	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Run(m.session)
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrProviderDoesNotExist
-	}
-	var provider *model.Provider
-	if err := res.One(&provider); err != nil {
-		return nil, err
-	}
-	return provider.ProviderJobs, nil
-}
-
-func (m DefaultManager) AddJobToProviderId(providerId string, job *model.ProviderJob) error {
-
-	var eventType string
-
-	res, err := r.Table(tblNameProviders).Filter(map[string]string{"id": providerId}).Run(m.session)
-	if err != nil {
-		return err
-	}
-	if res.IsNil() {
-		return ErrProviderDoesNotExist
-	}
-	var provider *model.Provider
-	if err := res.One(&provider); err != nil {
-		return err
-	}
-
-	provider.ProviderJobs = append(provider.ProviderJobs, job)
-
-	if _, err := r.Table(tblNameProviders).Filter(map[string]string{"id": provider.ID}).Update(provider).RunWrite(m.session); err != nil {
-		return err
-	}
-	eventType = "add-job-to-provider"
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s, name=%s", provider.ID, provider.Name), []string{"security"})
-
-	return nil
-}
-
-func (m DefaultManager) DeleteAllProviders() error {
-	_, err := r.Table(tblNameProviders).Delete().Run(m.session)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// end methods related to the Image structure
-
-func (m DefaultManager) AddRegistry(registry *shipyard.Registry) error {
+// TODO: this duplicated in the api package. Need to refactor into a util or client library.
+func (m DefaultManager) PingRegistry(registry *model.Registry) error {
 
 	// TODO: Please note the trailing forward slash / which is needed for Artifactory, else you get a 404.
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/v2/", registry.Addr), nil)
+
 	if err != nil {
 		return err
 	}
@@ -1542,17 +833,32 @@ func (m DefaultManager) AddRegistry(registry *shipyard.Registry) error {
 		return errors.New(resp.Status)
 	}
 
-	if _, err := r.Table(tblNameRegistries).Insert(registry).RunWrite(m.session); err != nil {
+	return nil
+}
+
+func (m DefaultManager) AddRegistry(registry *model.Registry) error {
+
+	if err := registry.InitRegistryClient(); err != nil {
 		return err
 	}
 
+	// TODO: consider not doing a test on adding the record, perhaps have a pingRegistry route that does this through API.
+	if err := m.PingRegistry(registry); err != nil {
+		log.Error(err)
+		return ErrCannotPingRegistry
+	}
+
+	if _, err := r.Table(tblNameRegistries).Insert(registry).RunWrite(m.session); err != nil {
+		return err
+	}
 	m.logEvent("add-registry", fmt.Sprintf("name=%s endpoint=%s", registry.Name, registry.Addr), []string{"registry"})
 
 	return nil
 }
 
-func (m DefaultManager) RemoveRegistry(registry *shipyard.Registry) error {
+func (m DefaultManager) RemoveRegistry(registry *model.Registry) error {
 	res, err := r.Table(tblNameRegistries).Get(registry.ID).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -1566,32 +872,30 @@ func (m DefaultManager) RemoveRegistry(registry *shipyard.Registry) error {
 	return nil
 }
 
-func (m DefaultManager) Registries() ([]*shipyard.Registry, error) {
+func (m DefaultManager) Registries() ([]*model.Registry, error) {
 	res, err := r.Table(tblNameRegistries).OrderBy(r.Asc("name")).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	regs := []*shipyard.Registry{}
+	regs := []*model.Registry{}
 	if err := res.All(&regs); err != nil {
 		return nil, err
 	}
 
-	registries := []*shipyard.Registry{}
-	for _, r := range regs {
-		reg, err := shipyard.NewRegistry(r.ID, r.Name, r.Addr, r.Username, r.Password, r.TlsSkipVerify)
-		if err != nil {
-			return nil, err
+	for _, registry := range regs {
+		if err := registry.InitRegistryClient(); err != nil {
+			log.Errorf("%s", err.Error())
 		}
-
-		registries = append(registries, reg)
 	}
 
-	return registries, nil
+	return regs, nil
 }
 
-func (m DefaultManager) Registry(name string) (*shipyard.Registry, error) {
-	res, err := r.Table(tblNameRegistries).Filter(map[string]string{"name": name}).Run(m.session)
+func (m DefaultManager) Registry(id string) (*model.Registry, error) {
+	res, err := r.Table(tblNameRegistries).Filter(map[string]string{"id": id}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 
@@ -1599,21 +903,22 @@ func (m DefaultManager) Registry(name string) (*shipyard.Registry, error) {
 	if res.IsNil() {
 		return nil, ErrRegistryDoesNotExist
 	}
-	var reg *shipyard.Registry
+	var reg *model.Registry
 	if err := res.One(&reg); err != nil {
 		return nil, err
 	}
 
-	registry, err := shipyard.NewRegistry(reg.ID, reg.Name, reg.Addr, reg.Username, reg.Password, reg.TlsSkipVerify)
-	if err != nil {
-		return nil, err
+	if err := reg.InitRegistryClient(); err != nil {
+		log.Errorf("%s", err.Error())
+		return reg, err
 	}
 
-	return registry, nil
+	return reg, nil
 }
 
-func (m DefaultManager) RegistryByAddress(addr string) (*shipyard.Registry, error) {
+func (m DefaultManager) RegistryByAddress(addr string) (*model.Registry, error) {
 	res, err := r.Table(tblNameRegistries).Filter(map[string]string{"addr": addr}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -1621,22 +926,21 @@ func (m DefaultManager) RegistryByAddress(addr string) (*shipyard.Registry, erro
 		log.Debugf("its nil!! it found nothing")
 		return nil, ErrRegistryDoesNotExist
 	}
-	var reg *shipyard.Registry
+	var reg *model.Registry
 	if err := res.One(&reg); err != nil {
 		log.Debugf("problem with res.One")
 		return nil, err
 	}
 
-	registry, err := shipyard.NewRegistry(reg.ID, reg.Name, reg.Addr, reg.Username, reg.Password, reg.TlsSkipVerify)
-	if err != nil {
-		log.Debugf("Problem creating new registry")
-		return nil, err
+	if err := reg.InitRegistryClient(); err != nil {
+		log.Errorf("%s", err.Error())
+		return reg, err
 	}
 
-	return registry, nil
+	return reg, nil
 }
 
-func (m DefaultManager) CreateConsoleSession(c *shipyard.ConsoleSession) error {
+func (m DefaultManager) CreateConsoleSession(c *model.ConsoleSession) error {
 	if _, err := r.Table(tblNameConsole).Insert(c).RunWrite(m.session); err != nil {
 		return err
 	}
@@ -1646,8 +950,9 @@ func (m DefaultManager) CreateConsoleSession(c *shipyard.ConsoleSession) error {
 	return nil
 }
 
-func (m DefaultManager) RemoveConsoleSession(c *shipyard.ConsoleSession) error {
+func (m DefaultManager) RemoveConsoleSession(c *model.ConsoleSession) error {
 	res, err := r.Table(tblNameConsole).Get(c.ID).Delete().Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return err
 	}
@@ -1659,8 +964,9 @@ func (m DefaultManager) RemoveConsoleSession(c *shipyard.ConsoleSession) error {
 	return nil
 }
 
-func (m DefaultManager) ConsoleSession(token string) (*shipyard.ConsoleSession, error) {
+func (m DefaultManager) ConsoleSession(token string) (*model.ConsoleSession, error) {
 	res, err := r.Table(tblNameConsole).Filter(map[string]string{"token": token}).Run(m.session)
+	defer res.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -1669,7 +975,7 @@ func (m DefaultManager) ConsoleSession(token string) (*shipyard.ConsoleSession, 
 		return nil, ErrConsoleSessionDoesNotExist
 	}
 
-	var c *shipyard.ConsoleSession
+	var c *model.ConsoleSession
 	if err := res.One(&c); err != nil {
 		return nil, err
 	}

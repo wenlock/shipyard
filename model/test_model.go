@@ -21,7 +21,7 @@ type Result struct {
 	TestResults    []*TestResult `json:"testResults" gorethink:"testResults"`
 }
 
-func (r *Result) NewResult(
+func NewResult(
 	projectId string,
 	description string,
 	buildId string,
@@ -80,14 +80,30 @@ func (s *SimpleResult) NewSimpleResult(
 	}
 }
 
+type Parameter struct {
+	ParamName  string   `json:"paramName" gorethink:"paramName"`
+	ParamValue []string `json:"paramValue" gorethink:"paramValue"`
+}
 type Test struct {
 	ID               string            `json:"id,omitempty" gorethink:"id,omitempty"`
 	Name             string            `json:"name" gorethink:"name"`
 	Description      string            `json:"description" gorethink:"description"`
 	Targets          []*TargetArtifact `json:"targets" gorethink:"targets"`
 	SelectedTestType string            `json:"selectedTestType" gorethink:"selectedTestType"`
-	ProviderId       string            `json:"providerId" gorethink:"providerId"`
+	Provider         TestProvider      `json:"provider" gorethink:"provider"`
+	Tagging          Tagging           `json:"tagging" gorethink:"tagging"`
+	FromTag          string            `json:"fromTag" gorethink:"fromTag"`
+	Parameters       []*Parameter      `json:"parameters" gorethink:"parameters"`
 	ProjectId        string            `json:"projectId" gorethink:"projectId"`
+}
+type TestProvider struct {
+	ProviderType string `json:"providerType" gorethink:"providerType"`
+	ProviderName string `json:"providerName" gorethink:"providerName"`
+	ProviderTest string `json:"ProviderTest" gorethink:"ProviderTest"`
+}
+type Tagging struct {
+	OnSuccess string `json:"onSuccess" gorethink:"onSuccess"`
+	OnFailure string `json:"onFailure" gorethink:"onFailure"`
 }
 
 func (t *Test) NewTest(
@@ -95,24 +111,38 @@ func (t *Test) NewTest(
 	description string,
 	targets []*TargetArtifact,
 	selectedTestType string,
-	providerId string,
 	projectId string,
+	providerType string,
+	providerName string,
+	providerTest string,
+	parameters []*Parameter,
+	successTag string,
+	failTag string,
+	fromTag string,
 ) *Test {
+	test := new(Test)
 
-	return &Test{
-		Name:             name,
-		Description:      description,
-		Targets:          targets,
-		SelectedTestType: selectedTestType,
-		ProviderId:       providerId,
-		ProjectId:        projectId,
-	}
+	test.Name = name
+	test.Description = description
+	test.Targets = targets
+	test.SelectedTestType = selectedTestType
+	test.Provider.ProviderType = providerType
+	test.Provider.ProviderName = providerName
+	test.Provider.ProviderTest = providerTest
+	test.Tagging.OnSuccess = successTag
+	test.Tagging.OnFailure = failTag
+	test.FromTag = fromTag
+	test.Parameters = parameters
+	test.ProjectId = projectId
+
+	return test
 }
 
 type TestResult struct {
 	ID            string `json:"id,omitempty" gorethink:"id,omitempty"`
 	ImageId       string `json:"imageId" gorethink:"imageId"`
 	ImageName     string `json:"imageName" gorethink:"imageName"`
+	BuildId       string `json:"buildId" gorethink:"buildId"`
 	DockerImageId string `json:"dockerImageId" gorethink:"dockerImageId"`
 	TestId        string `json:"testId" gorethink:"testId"`
 	TestName      string `json:"testName" gorethink:"testName"`
@@ -120,9 +150,10 @@ type TestResult struct {
 	SimpleResult
 }
 
-func (t *TestResult) NewTestResult(
+func NewTestResult(
 	imageId string,
 	imageName string,
+	buildId string,
 	dockerImageId string,
 	testId string,
 	testName string,
@@ -136,8 +167,11 @@ func (t *TestResult) NewTestResult(
 	testResult := new(TestResult)
 	testResult.ImageId = imageId
 	testResult.ImageName = imageName
+	testResult.BuildId = buildId
 	testResult.DockerImageId = dockerImageId
 	testResult.TestId = testId
+	testResult.BuildId = buildId
+	testResult.TestName = testName
 	testResult.Blocker = blocker
 	testResult.Status = status
 	testResult.Date = date

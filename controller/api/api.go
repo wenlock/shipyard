@@ -10,12 +10,12 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/mailgun/oxy/forward"
-	"github.com/shipyard/shipyard/auth"
 	"github.com/shipyard/shipyard/controller/manager"
 	"github.com/shipyard/shipyard/controller/middleware/access"
 	"github.com/shipyard/shipyard/controller/middleware/audit"
 	mAuth "github.com/shipyard/shipyard/controller/middleware/auth"
-	"github.com/shipyard/shipyard/tlsutils"
+	"github.com/shipyard/shipyard/utils/auth"
+	"github.com/shipyard/shipyard/utils/tlsutils"
 	"golang.org/x/net/websocket"
 )
 
@@ -129,17 +129,18 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/projects/{id}", a.deleteProject).Methods("DELETE")
 
 	// Endpoints to handle images related to a given project
-	apiRouter.HandleFunc("/api/projects/{project_id}/images", a.imagesByProjectId).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{project_id}/images/{id}", a.deleteImage).Methods("DELETE")
-	apiRouter.HandleFunc("/api/projects/{project_id}/images/{id}", a.image).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{project_id}/images", a.addImageToProjectId).Methods("POST", "PUT")
+	apiRouter.HandleFunc("/api/projects/{projectId}/images", a.createImage).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/images", a.getImages).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/images/{imageId}", a.getImage).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/images/{imageId}", a.updateImage).Methods("PUT")
+	apiRouter.HandleFunc("/api/projects/{projectId}/images/{imageId}", a.deleteImage).Methods("DELETE")
 
 	//ILM related routes
-	apiRouter.HandleFunc("/api/ilm_images", a.images).Methods("GET")
-	apiRouter.HandleFunc("/api/ilm_images", a.saveImage).Methods("POST")
-	apiRouter.HandleFunc("/api/ilm_images/{id}", a.updateImage).Methods("PUT")
-	apiRouter.HandleFunc("/api/ilm_images/{id}", a.image).Methods("GET")
-	apiRouter.HandleFunc("/api/ilm_images/{id}", a.deleteImage).Methods("DELETE")
+	/*	apiRouter.HandleFunc("/api/ilm_images", a.getImages).Methods("GET")
+		apiRouter.HandleFunc("/api/ilm_images", a.createImage).Methods("POST")
+		apiRouter.HandleFunc("/api/ilm_images/{id}", a.updateImage).Methods("PUT")
+		apiRouter.HandleFunc("/api/ilm_images/{id}", a.getImage).Methods("GET")
+		apiRouter.HandleFunc("/api/ilm_images/{id}", a.deleteImage).Methods("DELETE")*/
 
 	//Result Related routes
 	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.createResult).Methods("POST")
@@ -156,6 +157,16 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.updateTest).Methods("PUT")
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.deleteTest).Methods("DELETE")
 
+	//Build Related routes
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.createBuild).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.getBuilds).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.getBuild).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/results", a.getBuildResults).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.getBuildStatus).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/{action}", a.updateBuild).Methods("PUT")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.deleteBuild).Methods("DELETE")
+	//end Build related routes
+
 	//Provider related routes
 	apiRouter.HandleFunc("/api/providers", a.createProvider).Methods("POST")
 	apiRouter.HandleFunc("/api/providers", a.getProviders).Methods("GET")
@@ -165,8 +176,11 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/providers/{providerId}/jobs", a.getJobsByProviderId).Methods("GET")
 	apiRouter.HandleFunc("/api/providers/{providerId}/jobs", a.addJobToProviderId).Methods("POST")
 
+	//Public Registry Proxy
+	apiRouter.HandleFunc("/api/v1/search", a.dockerhubSearch).Methods("GET")
+	apiRouter.HandleFunc("/api/v1/repositories/tags", a.dockerhubTags).Methods("GET")
+
 	apiRouter.HandleFunc("/api/roles", a.roles).Methods("GET")
-	apiRouter.HandleFunc("/api/roles/{name}", a.role).Methods("GET")
 	apiRouter.HandleFunc("/api/nodes", a.nodes).Methods("GET")
 	apiRouter.HandleFunc("/api/nodes/{name}", a.node).Methods("GET")
 	apiRouter.HandleFunc("/api/containers/{id}/scale", a.scaleContainer).Methods("POST")
@@ -174,11 +188,11 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/events", a.purgeEvents).Methods("DELETE")
 	apiRouter.HandleFunc("/api/registries", a.registries).Methods("GET")
 	apiRouter.HandleFunc("/api/registries", a.addRegistry).Methods("POST")
-	apiRouter.HandleFunc("/api/registries/{name}", a.registry).Methods("GET")
-	apiRouter.HandleFunc("/api/registries/{name}", a.removeRegistry).Methods("DELETE")
-	apiRouter.HandleFunc("/api/registries/{name}/repositories", a.repositories).Methods("GET")
-	apiRouter.HandleFunc("/api/registries/{name}/repositories/{repo:.*}", a.repository).Methods("GET")
-	apiRouter.HandleFunc("/api/registries/{name}/repositories/{repo:.*}", a.deleteRepository).Methods("DELETE")
+	apiRouter.HandleFunc("/api/registries/{registryId}", a.registry).Methods("GET")
+	apiRouter.HandleFunc("/api/registries/{registryId}", a.removeRegistry).Methods("DELETE")
+	apiRouter.HandleFunc("/api/registries/{registryId}/repositories", a.repositories).Methods("GET")
+	apiRouter.HandleFunc("/api/registries/{registryId}/repositories/{repo:.*}", a.repository).Methods("GET")
+	apiRouter.HandleFunc("/api/registries/{registryId}/repositories/{repo:.*}", a.deleteRepository).Methods("DELETE")
 	apiRouter.HandleFunc("/api/servicekeys", a.serviceKeys).Methods("GET")
 	apiRouter.HandleFunc("/api/servicekeys", a.addServiceKey).Methods("POST")
 	apiRouter.HandleFunc("/api/servicekeys", a.removeServiceKey).Methods("DELETE")
@@ -191,7 +205,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/consolesession/{token}", a.removeConsoleSession).Methods("DELETE")
 
 	// global handler
-	globalMux.Handle("/", http.FileServer(http.Dir("static")))
+	globalMux.Handle("/", http.FileServer(http.Dir("controller/static")))
 
 	auditExcludes := []string{
 		"^/containers/json",
@@ -332,6 +346,9 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	globalMux.Handle("/v1.18/", swarmAuthRouter)
 	globalMux.Handle("/v1.19/", swarmAuthRouter)
 	globalMux.Handle("/v1.20/", swarmAuthRouter)
+	globalMux.Handle("/v1.21/", swarmAuthRouter)
+	globalMux.Handle("/v1.22/", swarmAuthRouter)
+	globalMux.Handle("/v1.23/", swarmAuthRouter)
 
 	// check for admin user
 	if _, err := controllerManager.Account("admin"); err == manager.ErrAccountDoesNotExist {

@@ -4,10 +4,26 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
 	"github.com/shipyard/shipyard/model"
+	"golang.org/x/net/context"
 	"io/ioutil"
 	"net/http"
 )
+
+func GetLocalImages(url string) ([]types.Image, error) {
+
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	cli, err := client.NewClient(url, "", nil, defaultHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	images, err := cli.ImageList(context.Background(), types.ImageListOptions{All: true})
+
+	return images, err
+}
 
 func GetImages(authHeader, url string) ([]model.Image, error) {
 	var images []model.Image
@@ -26,9 +42,9 @@ func GetImages(authHeader, url string) ([]model.Image, error) {
 	return images, nil
 }
 
-func CreateImage(authHeader string, url string, name string, imageId string, tag string, description string, location string, skipImageBuild bool, projectId string) (string, error) {
-	var image *model.Image
-	image = image.NewImage(name, imageId, tag, description, location, skipImageBuild, projectId)
+func CreateImage(authHeader string, url string, name string, imageId string, tag string, ilmtags []string, description string, registryId string, location string, skipImageBuild bool, projectId string) (string, error) {
+
+	image := model.NewImage(name, imageId, tag, ilmtags, description, registryId, location, skipImageBuild, projectId)
 	//make a request to create it
 	data, err := json.Marshal(image)
 	if err != nil {
@@ -51,9 +67,9 @@ func CreateImage(authHeader string, url string, name string, imageId string, tag
 	}
 }
 
-func UpdateImage(authHeader, url, id, name, imageId, tag, description, location string, skipImageBuild bool, projectId string) error {
-	var image *model.Image
-	image = image.NewImage(name, imageId, tag, description, location, skipImageBuild, projectId)
+func UpdateImage(authHeader string, url string, id string, name string, imageId string, tag string, ilmtags []string, description string, registryId string, location string, skipImageBuild bool, projectId string) error {
+
+	image := model.NewImage(name, imageId, tag, ilmtags, description, registryId, location, skipImageBuild, projectId)
 	image.ID = id
 	data, err := json.Marshal(image)
 	if err != nil {

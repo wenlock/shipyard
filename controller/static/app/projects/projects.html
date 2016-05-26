@@ -24,12 +24,15 @@
                 <i class="refresh icon"></i> Refresh
             </div>
             <div ui-sref="dashboard.create_project" class="ui small green labeled icon button">
-                <i class="plus icon"></i> Create New Project
+                <i id="create-new-project-button" class="plus icon"></i> Create New Project
             </div>
         </div>
         <div class="right aligned right floated column">
             <div class="ui small icon input">
                 <input ng-model="tableFilter" placeholder="Search projects..." reset-field/>
+            </div>
+            <div class="ui small icon input" style="vertical-align: middle;">
+                <img src="app/ILM Logo_72.png" style="height:40px; width:150px;"/>
             </div>
         </div>
     </div>
@@ -75,14 +78,15 @@
                         </div>
                     </td>
                     <td>
-                        <i class="circle icon" ng-class="a.status == 'Published' ? 'green' : a.status == 'Tested' ? 'yellow' : 'red'"></i>
+                        <i class="circle icon" ng-class="a.status == 'Published' ? 'green' : a.status == 'Tested' ? 'grey' : 'red'"></i>
                         <span class="hidden">{{a.status}}</span>
                     </td>
                     <td class="collapsing">{{a.id | limitTo:12}}</td>
                     <td>{{a.name}}</td>
                     <td>{{a.lastRun}}</td>
                     <td class="collapsing">
-                        <div ui-sref="dashboard.inspect_project({id: a.id, projectName: a.name})" class="basic compact blue ui icon button">
+                        <div ui-sref="dashboard.inspect_project({id: a.id, projectName: a.name})" class="basic compact blue ui icon button"
+                             ng-class="{disabled: !a.isBuilt}">
                             <i class="search icon"></i>
                         </div>
                         <div class="ui right pointing dropdown">
@@ -149,4 +153,5 @@
 
 <script>
     $('.ui.dropdown').dropdown();
+    $('.ui.right.pointing.dropdown').dropdown();
 </script>

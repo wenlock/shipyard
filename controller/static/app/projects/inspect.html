@@ -1,13 +1,49 @@
+<div id="inspect-project-history-{{vm.results.projectId}}" class="ui blue vertical demo sidebar menu">
+    <a class="item" style="background-color: #006E93">
+        <h4 class="ui header" style="color: white"><i class="clock icon"></i>Project History For:</h4>
+        <h4 class="ui header" style="color: white">
+            <i class="circle icon" ng-class="vm.project.status == 'Published' ? 'green' : vm.project.status == 'Tested' ? 'grey' : 'red'"></i>
+            {{vm.results.projectId}}
+        </h4>
+    </a>
+    <div class="item">
+        <div class="column" style="overflow-y:scroll; height: 550px">
+        <div class="active item">
+            <i class="circle icon" ng-class="vm.project.status == 'Published' ? 'green' : vm.project.status == 'Tested' ? 'grey' : 'red'"></i>{{vm.results.buildId}}
+        </div>
+        </div>
+    </div>
+</div>
+<!--Leaving pusher in case we need it-->
+<div class="pusher">
+    <!-- Site content !-->
+</div>
+
 <div class="ui padded grid">
     <div class="row">
         <div class="column">
             <div class="ui segment page">
                 <div class="ui grid">
-                    <div class="two column row">
+                    <span style="float: right">
+                        <img src="app/ILM Logo_72.png" style="height:60px; width:200px"/>
+                    </span>
+                    <div class="column row">
                         <div class="column">
+                            <div ng-click="vm.showProjectHistory()" class="ui small blue labeled icon button">
+                                <i class="clock icon"></i> Project History
+                            </div>
+                            <span ng-show="!vm.refresh" style="float: right">
+                                <a ng-click="vm.startRefresh(vm.results.projectId)" style="color: #006D95; cursor: pointer; font-weight: bold">Auto Refresh <i class="refresh icon"></i></a>
+                            </span>
+                            <span ng-show="vm.refresh" style="float: right">
+                                <a ng-click="vm.cancelRefresh()" style="color: darkgray; cursor: pointer; font-weight: bold">Auto Refresh <i class="stop icon"></i></a>
+                            </span>
                             <h3 class="ui header">
+                                <span style="float: right">
+                                    <a ui-sref="dashboard.projects" style="color: #006D95">Go To Projects <i class="sign out icon"></i></a>
+                                </span>
                                 <div class="content">
-                                    <i class="circle icon" ng-class="vm.project.status == 'Published' ? 'green' : vm.project.status == 'Tested' ? 'yellow' : 'red'"></i>
+                                    <i class="circle icon" ng-class="vm.project.status == 'Published' ? 'green' : vm.project.status == 'Tested' ? 'grey' : 'red'"></i>
                                     Project Results
                                 </div>
                             </h3>
@@ -29,33 +65,44 @@
                                     </div>
                                     <div class="six fields">
                                         <div class="field">
-                                            <label>Build ID: <span style="font-weight: normal">{{vm.results.buildId || 'Not implemented'}}</span></label>
+                                            <label>Build ID: <span style="font-weight: normal">{{vm.results.buildId || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>Run Date: <span style="font-weight: normal">{{vm.results.runDate || 'Not implemented'}}</span></label>
+                                            <label>Run Date: <span style="font-weight: normal">{{vm.results.runDate || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>End Date: <span style="font-weight: normal">{{vm.results.endDate || 'Not implemented'}}</span></label>
+                                            <label>End Date: <span style="font-weight: normal">{{vm.results.endDate || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>Create Date: <span style="font-weight: normal">{{vm.results.createDate || 'Not implemented'}}</span></label>
+                                            <label>Create Date: <span style="font-weight: normal">{{vm.results.createDate || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>Author: <span style="font-weight: normal">{{vm.results.author || 'Not implemented'}}</span></label>
+                                            <label>Author: <span style="font-weight: normal">{{vm.results.author || '...'}}</span></label>
                                         </div>
                                     </div>
                                     <div class="six fields">
                                         <div class="field">
-                                            <label>Project Version: <span style="font-weight: normal">{{vm.results.projectVersion || 'Not implemented'}}</span></label>
+                                            <label>Project Version: <span style="font-weight: normal">{{vm.results.projectVersion || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>Last Tag Applied: <span style="font-weight: normal">{{vm.results.lastTagApplied || 'Not implemented'}}</span></label>
+                                            <label>Last Tag Applied: <span style="font-weight: normal">{{vm.results.lastTagApplied || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>Last Update: <span style="font-weight: normal">{{vm.results.lastUpdate || 'Not implemented'}}</span></label>
+                                            <label>Last Update: <span style="font-weight: normal">{{vm.results.lastUpdate || '...'}}</span></label>
                                         </div>
                                         <div class="field">
-                                            <label>Last Update Name: <span style="font-weight: normal">{{vm.results.lastUpdate || 'Not implemented'}}</span></label>
+                                            <label>Last Update Name: <span style="font-weight: normal">{{vm.results.updater || '...'}}</span></label>
+                                        </div>
+                                    </div>
+                                    <div class="field">
+                                        <div class="row">
+                                            <div class="column">
+                                                <a ui-sref='dashboard.edit_project({id:vm.results.projectId})'>
+                                                    <div id="edit-project" class="ui small button">
+                                                        Edit Project
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -77,6 +124,7 @@
                                     <tr>
                                         <th class="collapsing"><i class="heartbeat icon"></i></th>
                                         <th>Test ID</th>
+                                        <th>Build ID</th>
                                         <th>Blocker</th>
                                         <th>Test Name</th>
                                         <th>Image Name</th>
@@ -88,16 +136,22 @@
                                     </tr>
                                     </thead>
                                     <tbody>
-                                    <tr ng-repeat="test in vm.results.testsResults" jquery>
+                                    <tr ng-repeat="test in vm.results.testResults" jquery>
                                         <td>
-                                            <i class="circle icon" ng-class="test.status == 'Success' ? 'green' : 'red'"></i>
+                                            <i class="circle icon" ng-class="test.status == 'finished_success' ? 'green' : 'red'"></i>
                                             <span class="hidden">{{test.status}}</span>
                                         </td>
-                                        <td>{{test.testId}}</td>
-                                        <td>{{test.blocker}}</td>
+                                        <td>{{test.testId | limitTo:12}}</td>
+                                        <td>{{test.buildId | limitTo:12}}</td>
+                                        <td>
+                                            <div class="ui toggle checkbox">
+                                                <input type="checkbox" name="blocker" ng-model="test.blocker" disabled>
+                                                <label></label>
+                                            </div>
+                                        </td>
                                         <td>{{test.testName}}</td>
                                         <td>{{test.imageName}}</td>
-                                        <td>{{test.dockerImageId}}</td>
+                                        <td>{{test.dockerImageId | limitTo:12}}</td>
                                         <td>{{test.date}}</td>
                                         <td>{{test.endDate}}</td>
                                         <td><span ng-repeat="tag in test.appliedTag">
@@ -106,6 +160,9 @@
                                             </div>
                                         </span></td>
                                         <td class="collapsing">
+                                            <div ui-sref="dashboard.buildResults({projectId: vm.results.projectId, testId: test.testId, buildId: test.buildId})" class="basic compact blue ui icon button"  ng-class="{disabled: test.istestResult}">
+                                                <i class="search icon"></i>
+                                            </div>
                                             <div class="basic compact blue ui icon button">
                                                 <i class="file text icon"></i>
                                             </div>
