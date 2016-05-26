@@ -40,9 +40,15 @@ func (m DefaultManager) VerifyIfImageExistsLocally(image model.Image) bool {
 }
 
 func (m DefaultManager) PullImage(image model.Image) error {
+
+	// Check to see if the image exists locally, if not, try to pull it.
+	if m.VerifyIfImageExistsLocally(image) {
+		log.Debug("Image %s exists locally, will not try to pull...", image.PullableName())
+		return nil
+	}
+
 	username := ""
 	password := ""
-
 	if image.RegistryId != "" {
 		registry, err := m.Registry(image.RegistryId)
 		if err != nil {
@@ -55,7 +61,6 @@ func (m DefaultManager) PullImage(image model.Image) error {
 
 	auth := dockerclient.AuthConfig{username, password, ""}
 
-	fmt.Printf("Image does not exist locally. Pulling image %s ... \n", image.PullableName())
 	ticker := time.NewTicker(time.Second * 15)
 	go func() {
 		for t := range ticker.C {
@@ -185,7 +190,6 @@ func (m DefaultManager) UpdateImage(projectId string, image *model.Image) error 
 }
 
 func (m DefaultManager) UpdateImageIlmTags(projectId string, imageId string, ilmTag string) error {
-	var eventType string
 	// check if exists; if so, update
 	rez, err := m.GetImage(projectId, imageId)
 	if err != nil && err != ErrImageDoesNotExist {
@@ -208,9 +212,6 @@ func (m DefaultManager) UpdateImageIlmTags(projectId string, imageId string, ilm
 		return err
 	}
 
-	eventType = "update-image"
-
-	m.logEvent(eventType, fmt.Sprintf("id=%s", imageId), []string{"security"})
 	return nil
 }
 

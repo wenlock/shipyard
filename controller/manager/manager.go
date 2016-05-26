@@ -145,7 +145,7 @@ type (
 		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
 
 		CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error)
-		UpdateBuildResults(buildId string, result *model.BuildResult) error
+		UpdateBuildResults(buildId string, results []*model.BuildResult) error
 		UpdateBuildStatus(buildId string, status string) error
 		UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error
 		DeleteBuild(projectId string, testId string, buildId string) error

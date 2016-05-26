@@ -12,6 +12,8 @@ import (
 )
 
 type executeBuildTasksResults struct {
+	projectResult *model.Result
+	appliedTag string
 	buildStatus string
 	buildResult *model.BuildResult
 }
@@ -35,9 +37,7 @@ func (m DefaultManager) GetBuild(projectId string, testId string, buildId string
 }
 
 func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
-	log.Info("looking for build in db")
 	res, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Run(m.session)
-	log.Info("done looking in db")
 	defer res.Close()
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (m DefaultManager) GetBuildById(buildId string) (*model.Build, error) {
 	if err := res.One(&build); err != nil {
 		return nil, err
 	}
-	log.Info("return build")
+
 	return build, nil
 }
 
@@ -170,34 +170,57 @@ func (m DefaultManager) executeBuildTasks(
 	build *model.Build,
 	imagesToBuild []*model.Image,
 ) {
+	log.Debugf("Executing builds for images %v as part of test %s", imagesToBuild, test.Name)
+
+	// Channels for `executeBuildTask` generators
 	var taskReceivingChannels []<-chan executeBuildTasksResults
 	// For each image that we target in the test, try to run a build / verification
 	// TODO: Add "running", "start", etc... as constants somewhere
 	m.UpdateBuildStatus(build.ID, "running")
 	for _, image := range imagesToBuild {
-		log.Printf("Processing image=%s", image.PullableName())
-		channel := m.executeBuildTask(*project, *test, *build, *image)
+		// Start executing tasks concurrently
+		channel, err := m.executeBuildTask(*project, *test, *build, *image)
+		if err != nil {
+			log.Error(err)
+			return
+		}
 		taskReceivingChannels = append(taskReceivingChannels, channel)
 	}
 
-	var statuses []string
-	for _, taskReceivingChannel := range taskReceivingChannels {
+	log.Debugf("Synchronizing with child goroutines executeBuildTask")
+
+	// Synchronize with goroutines and fetch the build results
+	var buildStatuses []string
+	var buildResults []*model.BuildResult
+	for i, taskReceivingChannel := range taskReceivingChannels {
 		results := <-taskReceivingChannel
 		// Fetch the build statuses and store them for later use
-		statuses = append(statuses, results.buildStatus)
-		// Update build results
-		m.UpdateBuildResults(build.ID, results.buildResult)
+		buildStatuses = append(buildStatuses, results.buildStatus)
+		// Fetch the build results and store them for later use
+		buildResults = append(buildResults, results.buildResult)
+		// Update results for the project
+		if err := m.CreateOrUpdateResults(project.ID, results.projectResult); err != nil {
+			log.Error(err)
+		}
+		// Update ILM tags
+		if err := m.UpdateImageIlmTags(project.ID, imagesToBuild[i].ID, results.appliedTag); err != nil {
+			log.Error(err)
+		}
 	}
-	log.Info("all channels received")
 	// Check to see if build was successful by comparing the statuses for all build tasks
 	buildStatus := "finished_success"
-	for _, status := range statuses {
+	for _, status := range buildStatuses {
 		if status != "finished_success" {
 			buildStatus = "finished_failed"
 			break
 		}
 	}
-	// Update status for our build model
+
+	// Update build results in our build
+	if err := m.UpdateBuildResults(build.ID, buildResults); err != nil {
+		log.Error(err)
+	}
+	// Update status for our build
 	if err := m.UpdateBuildStatus(build.ID, buildStatus); err != nil {
 		log.Error(err)
 	}
@@ -211,114 +234,106 @@ func (m DefaultManager) executeBuildTask(
 	test model.Test,
 	build model.Build,
 	image model.Image,
-) <-chan executeBuildTasksResults {
+) (<-chan executeBuildTasksResults, error) {
 	channel := make(chan executeBuildTasksResults)
 
 	go func() {
+		log.Debugf("Executing build task for ilm image %s within test %s.", image.Name, test.Name)
+
+		// Check to see if the image exists locally, if not, try to pull it.
+		if err := m.PullImage(image); err != nil {
+			log.Errorf("Error pulling image %s.", image.PullableName())
+			return
+		}
+
+		log.Debugf("Fetching docker image ID for ilm image %s.", image.PullableName())
+
+		// Fetch docker ID of image
+		dockerImageId, err := m.FetchIDForImage(image.PullableName())
+		image.ImageId = dockerImageId
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		log.Debugf("Will attempt to test image %s with Clair...", image.PullableName())
+
+		// Once the image is available, try to test it with Clair
+		resultsSlice, isSafe, clairErr := c.CheckImage(&image)
+
+		// Create build result with clair results
+		buildResult := model.NewBuildResult(
+			build.ID,
+			model.NewTargetArtifact(
+				image.ID,
+				model.TargetArtifactImageType,
+				image,
+			),
+			resultsSlice)
+		buildResult.TimeStamp = time.Now()
+
+		// determine success or failure (values will be added to channel)
+		var finishLabel string
+		var appliedTag string
+		if isSafe && clairErr == nil {
+			log.Debugf("Clair yielded no errors for image %s.", image.PullableName())
+			appliedTag = test.Tagging.OnSuccess
+			finishLabel = "finished_success"
+		} else {
+			log.Debugf("Clair yielded error(s) for image %s.", image.PullableName())
+			appliedTag = test.Tagging.OnFailure
+			finishLabel = "finished_failure"
+		}
+
+		log.Debugf("Creating result objects for test %s", test.Name)
+
+		// Instantiate `testResult` with the information we have
+		testResult := &model.TestResult{
+			TestId: test.ID,
+			DockerImageId: dockerImageId,
+			BuildId: build.ID,
+			TestName: test.Name,
+			ImageName: image.PullableName(),
+			SimpleResult: model.SimpleResult{
+				Date: time.Now(),
+				Status: finishLabel,
+				EndDate: time.Now(),
+				AppliedTag: []string{
+					appliedTag,
+				},
+			},
+			Blocker: false,
+		}
+
 		// TODO: need to revisit API spec, there are just too many redundant "Result" types stored,
 		// TODO: these should probably just be views of the BuildResults
 		// TODO: need to set the author to the real user
 		// TODO: use model.NewResult() instead
-		result := &model.Result{
+		projectResult := &model.Result{
 			BuildId:     build.ID,
 			Author:      "author",
 			ProjectId:   project.ID,
 			Description: project.Description,
 			Updater:     "author",
 			CreateDate:  time.Now(),
+			TestResults: []*model.TestResult{
+				testResult,
+			},
+			LastUpdate: time.Now(),
+			LastTagApplied: appliedTag,
 		}
 
-		// TODO: use model.NewTestResult() instead
-		testResult := model.TestResult{}
-		testResult.Date = time.Now()
-		testResult.TestId = test.ID
-		testResult.BuildId = build.ID
-		testResult.TestName = test.Name
-		testResult.ImageName = image.PullableName()
-		testResult.BuildId = build.ID
+		log.Debugf("Synchronizing with executeBuildTasks parent goroutine")
 
-		// Check to see if the image exists locally, if not, try to pull it.
-		if !m.VerifyIfImageExistsLocally(image) {
-			log.Printf("Image %s not available locally, will try to pull...", image.PullableName())
-			if err := m.PullImage(image); err != nil {
-				log.Errorf("Error pulling image %s", image.PullableName())
-				return
-			}
-		}
-
-		// Get all local images
-		localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
-
-		// TODO: Refactor this into its own func
-		// get the docker image id and append it to the test results
-		for _, localImage := range localImages {
-			imageRepoTags := localImage.RepoTags
-			for _, imageRepoTag := range imageRepoTags {
-				if imageRepoTag == image.PullableName() {
-					//image.DockerImageId = localImage.ID
-					testResult.DockerImageId = localImage.ID
-					image.ImageId = localImage.ID
-				}
-			}
-		}
-
-		existingResult, _ := m.GetResults(project.ID)
-
-		// Once the image is available, try to test it with Clair
-		log.Printf("Will attempt to test image %s with Clair...", image.PullableName())
-		resultsSlice, isSafe, err := c.CheckImage(&image)
-
-		targetArtifact := model.NewTargetArtifact(
-			image.ID,
-			model.TargetArtifactImageType,
-			image,
-		)
-		buildResult := model.NewBuildResult(build.ID, targetArtifact, resultsSlice)
-		buildResult.TimeStamp = time.Now()
-
-		finishLabel := "finished_failed"
-
-		appliedTag := ""
-		if isSafe && err == nil {
-			// if we don't get an error and we get the isSafe flag == true
-			// we mark the test for the image as successful
-			finishLabel = "finished_success"
-			// if the test is successful, we update the images' ilm tags with the test tags we defined in the case of a success
-			appliedTag = test.Tagging.OnSuccess
-			log.Infof("Image %s is safe! :)", image.PullableName())
-		} else {
-			// if the test is failed, we update the images' ilm tags with the test tags we defined in the case of a failure
-			appliedTag = test.Tagging.OnFailure
-			log.Errorf("Image %s is NOT safe :(", image.PullableName())
-		}
-		if appliedTag != "" {
-			m.UpdateImageIlmTags(project.ID, image.ID, appliedTag)
-		}
-
-
-		testResult.SimpleResult.Status = finishLabel
-		testResult.EndDate = time.Now()
-		testResult.Blocker = false
-		testResult.AppliedTag = append(testResult.AppliedTag, appliedTag)
-		result.TestResults = append(result.TestResults, &testResult)
-		result.LastUpdate = time.Now()
-		result.LastTagApplied = appliedTag
-
-		if existingResult != nil {
-			m.UpdateResult(project.ID, result)
-		} else {
-			m.CreateResult(project.ID, result)
-		}
-
-		log.Info("sending channel")
 		channel <- executeBuildTasksResults{
+			projectResult: projectResult,
+			appliedTag: appliedTag,
 			buildStatus: finishLabel,
 			buildResult: buildResult,
 		}
-		log.Info("sent channel")
 	}()
 
-	return channel
+	return channel, nil
 }
 
 func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error {
@@ -356,13 +371,15 @@ func (m DefaultManager) UpdateBuild(projectId string, testId string, buildId str
 
 }
 
-func (m DefaultManager) UpdateBuildResults(buildId string, result *model.BuildResult) error {
+func (m DefaultManager) UpdateBuildResults(buildId string, results []*model.BuildResult) error {
 	var eventType string
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
 		return err
 	}
-	build.Results = append(build.Results, result)
+	for _, result := range results {
+		build.Results = append(build.Results, result)
+	}
 
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
@@ -375,7 +392,6 @@ func (m DefaultManager) UpdateBuildResults(buildId string, result *model.BuildRe
 	return nil
 }
 func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
-	log.Info("updating build status")
 	var eventType string
 	build, err := m.GetBuildById(buildId)
 	if err != nil {
@@ -383,16 +399,13 @@ func (m DefaultManager) UpdateBuildStatus(buildId string, status string) error {
 	}
 	build.Status.Status = status
 
-	log.Info("fetching from db")
 	if _, err := r.Table(tblNameBuilds).Filter(map[string]string{"id": buildId}).Update(build).RunWrite(m.session); err != nil {
 		return err
 	}
-	log.Info("fetched from db")
 
 	eventType = "update-build-status"
 
 	m.logEvent(eventType, fmt.Sprintf("id=%s", buildId), []string{"security"})
-	log.Info("finished updating status")
 
 	return nil
 }
@@ -421,3 +434,43 @@ func (m DefaultManager) DeleteAllBuilds() error {
 
 	return nil
 }
+
+func (m DefaultManager) FetchIDForImage(image string) (string, error) {
+	localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	var imageId string
+	for _, localImage := range localImages {
+		imageRepoTags := localImage.RepoTags
+		for _, imageRepoTag := range imageRepoTags {
+			if imageRepoTag == image {
+				imageId = localImage.ID
+			}
+		}
+	}
+
+	return imageId, nil
+}
+
+func (m DefaultManager) CreateOrUpdateResults(id string, result *model.Result) error {
+	log.Debugf("Updating Project Results for project %s.", id)
+
+	existingResult, _ := m.GetResults(id)
+
+	var err error
+
+	if existingResult != nil {
+		log.Debugf("Result for project %s already exists. Updating project result...", id)
+		err = m.UpdateResult(id, result)
+	} else {
+		log.Debugf("Result for project %s does not yet exists. Creating project result...", id)
+		err = m.CreateResult(id, result)
+	}
+
+	return err
+}
+
+
