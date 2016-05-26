@@ -65,5 +65,25 @@
                     }]
                 }
             })
+            .state('dashboard.orderTests', {
+                url: '^/projects/{id}/order',
+                templateUrl: 'app/projects/orderTests.html',
+                controller: 'OrderTestsController',
+                controllerAs: 'vm',
+                authenticate: true,
+                resolve: {
+                    orderTests: ['ProjectService', '$state', '$stateParams', function(ProjectService, $state, $stateParams) {
+                        return ProjectService.getTests($stateParams.id).then(null, function(errorData) {
+                            $state.go('error');
+                        });
+                    }],
+                    project: ['ProjectService', '$state', '$stateParams', function(ProjectService, $state, $stateParams) {
+                        return ProjectService.edit($stateParams.id).then(null, function(errorData) {
+                            $state.go('error');
+                        });
+                    }],
+                }
+            })
+
     }
 })();

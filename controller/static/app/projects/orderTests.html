@@ -1,0 +1,76 @@
+<div class="ui padded grid">
+    <div class="row">
+        <div class="column">
+            <div class="ui segment page">
+                <div class="ui grid">
+                    <div class="column row">
+                        <div class="column">
+                            <h3 class="ui header">
+                                <span style="float: right">
+                                    <a ui-sref="dashboard.edit_projects({id: vm.projectDetails.id})" style="color: #006D95">Back To Edit Project View <i class="sign out icon"></i></a>
+                                </span>
+                                <div class="content">
+                                    <i class="circle icon" ng-class="vm.projectDetails.status == 'Published' ? 'green' : vm.projectDetails.status == 'Tested' ? 'yellow' : 'red'"></i>
+                                    {{vm.projectDetails.name}}
+                                </div>
+                            </h3>
+                        </div>
+                    </div>
+
+                    <div class="ui padded grid">
+                        <div class="row">
+                            <div class="column">
+                                <div class="ui dividing header"></div>
+                                <div>
+                                    <h5>Modify Tests Order</h5>
+                                </div>
+                                <div ng-click="" class="ui small blue labeled button">
+                                    Apply Changes
+                                </div>
+                                <div ng-click="" class="ui small labeled button">
+                                    Cancel
+                                </div>
+                                <table id="sort" class="ui sortable celled table">
+                                    <thead>
+                                    <tr>
+                                        <th class="collapsing">Order Of Execution</th>
+                                        <th>Test Name</th>
+                                        <th>Test ID</th>
+                                        <th>Description</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody ui-sortable>
+                                    <tr ng-repeat="test in vm.testsToOrder" style="cursor:move" jquery>
+                                        <td class="collapsing">
+                                            {{$index+1}}
+                                        </td>
+                                        <td>{{test.name}}</td>
+                                        <td>{{test.id}}</td>
+                                        <td>{{test.description}}</td>
+                                        <td class="collapsing">
+                                            <div class="basic compact blue ui icon button disabled">
+                                                <i class="pencil icon"></i>
+                                            </div>
+                                            <div class="basic compact blue ui icon button disabled">
+                                                <i class="play icon"></i>
+                                            </div>
+                                            <div class="basic compact blue ui icon button disabled">
+                                                <i class="search icon"></i>
+                                            </div>
+                                            <div class="basic compact blue ui icon button disabled">
+                                                <i class="trash icon"></i>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
