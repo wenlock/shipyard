@@ -77,6 +77,29 @@ func (m DefaultManager) PullImage(image model.Image) error {
 	return nil
 }
 
+func (m DefaultManager) GetImagesByIds(ids []string) ([]*model.Image, error) {
+
+	genIds := make([]interface{},len(ids))
+	genIds = append(genIds, ids)
+	res, err := r.Table(tblNameImages).GetAll(genIds...).Run(m.session)
+
+	defer res.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	images := []*model.Image{}
+	if err := res.All(&images); err != nil {
+		return nil, err
+	}
+
+	for _, image := range images {
+		m.injectRegistryInfo(image)
+	}
+	return images, nil
+}
+
 //methods related to the Image structure
 func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 

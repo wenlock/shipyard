@@ -50,8 +50,7 @@ func GetProvider(authHeader, url, providerId string) (*model.Provider, int, erro
 }
 
 func CreateProvider(authHeader string, url string, name string, availableJobTypes types.Array, config types.Object, provUrl string, providerJobs []*model.ProviderJob) (string, int, error) {
-	var provider *model.Provider
-	provider = provider.NewProvider(name, availableJobTypes, config, provUrl, providerJobs)
+	provider := model.NewProvider(name, config, provUrl, providerJobs)
 
 	data, err := json.Marshal(provider)
 	if err != nil {
@@ -79,8 +78,7 @@ func CreateProvider(authHeader string, url string, name string, availableJobType
 }
 
 func UpdateProvider(authHeader string, url string, name string, providerId string, availableJobTypes types.Array, config types.Object, provUrl string, providerJobs []*model.ProviderJob) (int, error) {
-	var provider *model.Provider
-	provider = provider.NewProvider(name, availableJobTypes, config, provUrl, providerJobs)
+	provider := model.NewProvider(name, config, provUrl, providerJobs)
 	provider.ID = providerId
 	data, err := json.Marshal(provider)
 	if err != nil {

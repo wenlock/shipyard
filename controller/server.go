@@ -5,10 +5,12 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/shipyard/shipyard/controller/api"
 	"github.com/shipyard/shipyard/controller/manager"
+	"github.com/shipyard/shipyard/controller/health_checker"
 	"github.com/shipyard/shipyard/utils"
 	"github.com/shipyard/shipyard/utils/auth/builtin"
 	"github.com/shipyard/shipyard/utils/auth/ldap"
 	"github.com/shipyard/shipyard/version"
+	"time"
 )
 
 var (
@@ -60,6 +62,18 @@ func CmdServer(c *cli.Context) {
 	}
 
 	log.Debugf("connected to docker: url=%s", dockerUrl)
+
+	// Start health checker
+	hc, _ := health_checker.NewHealthChecker(
+		rethinkdbAddr,
+		rethinkdbDatabase,
+		rethinkdbAuthKey,
+		// TODO: make this configurable through env vars or CLI args
+		time.Minute*15,
+		client,
+	)
+
+	hc.Start()
 
 	shipyardTlsCert := c.String("shipyard-tls-cert")
 	shipyardTlsKey := c.String("shipyard-tls-key")

@@ -11,9 +11,9 @@ import (
 func (a *Api) getBuilds(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
+	//projId := vars["projectId"]
 	testId := vars["testId"]
-	builds, err := a.manager.GetBuilds(projId, testId)
+	builds, err := a.manager.GetBuildsByTestId(testId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -26,11 +26,9 @@ func (a *Api) getBuilds(w http.ResponseWriter, r *http.Request) {
 
 func (a *Api) getBuild(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projectId := vars["projectId"]
-	testId := vars["testId"]
 	buildId := vars["buildId"]
 
-	build, err := a.manager.GetBuild(projectId, testId, buildId)
+	build, err := a.manager.GetBuild(buildId)
 	if err != nil {
 		log.Errorf("error retrieving build: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -61,11 +59,9 @@ func (a *Api) getBuildStatus(w http.ResponseWriter, r *http.Request) {
 }
 func (a *Api) getBuildResults(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projectId := vars["projectId"]
-	testId := vars["testId"]
 	buildId := vars["buildId"]
 
-	buildResults, err := a.manager.GetBuildResults(projectId, testId, buildId)
+	buildResults, err := a.manager.GetBuildResults(buildId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -77,18 +73,19 @@ func (a *Api) getBuildResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-func (a *Api) createBuild(w http.ResponseWriter, r *http.Request) {
+func (a *Api) executeBuild(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
 	testId := vars["testId"]
-	action := vars["action"]
-	var status *model.BuildStatus
 	var buildId string
-	//hardcode action to start, temporarily
-	//this needs to be removed before going to production
-	action = "start"
-	buildAction := status.NewBuildAction(action)
-	buildId, err := a.manager.CreateBuild(projId, testId, buildAction)
+
+	var buildAction *model.BuildAction
+	if err := json.NewDecoder(r.Body).Decode(&buildAction); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	buildId, err := a.manager.ExecuteBuild(testId, buildAction)
+
 	if err != nil {
 		log.Errorf("error creating build: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -113,27 +110,30 @@ func (a *Api) createBuild(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (a *Api) updateBuild(w http.ResponseWriter, r *http.Request) {
+func (a *Api) updateBuildExecution(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
-	testId := vars["testId"]
 	buildId := vars["buildId"]
-	action := vars["action"]
-	var status *model.BuildStatus
-	buildAction := status.NewBuildAction(action)
-	build, err := a.manager.GetBuild(projId, testId, buildId)
+
+	build, err := a.manager.GetBuild(buildId)
 	if err != nil {
 		log.Errorf("error updating build: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+
+	var buildAction *model.BuildAction
+	if err := json.NewDecoder(r.Body).Decode(&buildAction); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if err := json.NewDecoder(r.Body).Decode(&build); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := a.manager.UpdateBuild(projId, testId, buildId, buildAction); err != nil {
+	if err := a.manager.UpdateBuild(buildId, buildAction); err != nil {
 		log.Errorf("error updating build: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -143,19 +143,42 @@ func (a *Api) updateBuild(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *Api) deleteBuild(w http.ResponseWriter, r *http.Request) {
+func (a *Api) addBuildResult(w http.ResponseWriter, r *http.Request)  {
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
-	testId := vars["testId"]
 	buildId := vars["buildId"]
 
-	build, err := a.manager.GetBuild(projId, testId, buildId)
+	var buildResult *model.BuildResult
+	if err := json.NewDecoder(r.Body).Decode(&buildResult); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	build, err := a.manager.GetBuild(buildId)
+	if err != nil {
+		log.Errorf("error updating build: %s", err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	if err := a.manager.UpdateBuildResults(build.ID,buildResult); err != nil {
+		log.Errorf("error updating build: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (a *Api) deleteBuild(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	buildId := vars["buildId"]
+
+	build, err := a.manager.GetBuild(buildId)
 	if err != nil {
 		log.Errorf("error deleting build: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if err := a.manager.DeleteBuild(projId, testId, buildId); err != nil {
+	if err := a.manager.DeleteBuild(buildId); err != nil {
 		log.Errorf("error deleting build: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

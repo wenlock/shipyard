@@ -9,22 +9,6 @@ import (
 )
 
 func (a *Api) createTest(w http.ResponseWriter, r *http.Request) {
-	//add code to create a test and return the appropriate response
-	/*post:
-	  description: Create a new test for a given project
-	  body:
-	    application/json:
-	      type: Test
-	  responses:
-	    201:
-	      body:
-	        application/json:
-	          type: ObjectCreatedResponse
-	    500:
-	      body:
-	        text/plain:
-	          type: Error
-	*/
 
 	vars := mux.Vars(r)
 	projectId := vars["projectId"]
@@ -61,18 +45,6 @@ func (a *Api) createTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) getTests(w http.ResponseWriter, r *http.Request) {
-	/*       # GET /api/projects/{projectId}/tests
-	         get:
-	           description: Get all tests for a give project
-	           responses:
-	             200:
-	               body:
-	                 application/json:
-	                   type: Test[]
-	             500:
-	               body:
-	                 text/plain:
-	                   type: Error*/
 	w.Header().Set("content-type", "application/json")
 	vars := mux.Vars(r)
 	projId := vars["projectId"]
@@ -88,34 +60,10 @@ func (a *Api) getTests(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) getTest(w http.ResponseWriter, r *http.Request) {
-	/*  # GET /api/projects/{projectId}/tests/{testId}
-	    get:
-	      description: Get one project test by its id for a given project.
-	      responses:
-	        200:
-	          body:
-	            application/json:
-	              type: Test
-	        500:
-	          body:
-	            text/plain:
-	              type: Error
-	        404:
-	          description: When either projectId or testId are not found.
-	          body:
-	            text/plain:
-	              type: Error
-	              examples:
-	                - content: |
-	                    Could not get test with id c38129ed-9ec4-40be-9682-b48a1834b2c2
-	                    since project with id e30f964e-1207-4e4a-9630-b58d1f36ceec not found.
-	                - content: |
-	                    Test with id c38129ed-9ec4-40be-9682-b48a1834b2c2 not found.*/
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
 	testId := vars["testId"]
 
-	test, err := a.manager.GetTest(projId, testId)
+	test, err := a.manager.GetTest(testId)
 	if err != nil {
 		log.Errorf("error retrieving result: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -129,38 +77,11 @@ func (a *Api) getTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) updateTest(w http.ResponseWriter, r *http.Request) {
-	/*# PUT /api/projects/{projectId}/tests/{testId}
-	  put:
-	    description: Update a project test by its id for a given project
-	    body:
-	      application/json:
-	        type: Test
-	    responses:
-	      201:
-	        body:
-	          application/json:
-	            type: ObjectCreatedResponse
-	      404:
-	        description: When either projectId or testId are not found.
-	        body:
-	          text/plain:
-	            type: Error
-	            examples:
-	              - content: |
-	                  Could not update test with id c38129ed-9ec4-40be-9682-b48a1834b2c2
-	                  since project with id e30f964e-1207-4e4a-9630-b58d1f36ceec not found.
-	              - content: |
-	                  Test with id c38129ed-9ec4-40be-9682-b48a1834b2c2 not found.
-	      500:
-	        body:
-	          text/plain:
-	            type: Error
-	*/
 	vars := mux.Vars(r)
 	projId := vars["projectId"]
 	testId := vars["testId"]
 
-	test, err := a.manager.GetTest(projId, testId)
+	test, err := a.manager.GetTest(testId)
 	if err != nil {
 		log.Errorf("error updating test: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -182,35 +103,11 @@ func (a *Api) updateTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) deleteTest(w http.ResponseWriter, r *http.Request) {
-	/*    # DELETE /api/proejcts/{projectId}/tests/{testId}
-	      delete:
-	        description: "Delete a project test by its id for a given project"
-
-	        responses:
-	          204:
-	            body:
-	              text/plain: !!null
-
-	          404:
-	            description: When either projectId or testId are not found.
-	            body:
-	              text/plain:
-	                type: Error
-	                examples:
-	                  - content: |
-	                      Could not delete test with id c38129ed-9ec4-40be-9682-b48a1834b2c2
-	                      since project with id e30f964e-1207-4e4a-9630-b58d1f36ceec not found.
-	                  - content: |
-	                      Test with id c38129ed-9ec4-40be-9682-b48a1834b2c2 not found.
-	          500:
-	            body:
-	              text/plain:
-	                type: Error*/
 	vars := mux.Vars(r)
 	projId := vars["projectId"]
 	testId := vars["testId"]
 
-	test, err := a.manager.GetTest(projId, testId)
+	test, err := a.manager.GetTest(testId)
 	if err != nil {
 		log.Errorf("error deleting test: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)

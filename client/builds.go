@@ -27,8 +27,7 @@ func GetBuilds(authHeader, url string, projectId string, testId string) ([]*mode
 }
 
 func CreateBuild(authHeader string, url string, cfg *model.BuildConfig, status *model.BuildStatus, res []*model.BuildResult, testId string, projectId string, action *model.BuildAction) (string, int, error) {
-	var build *model.Build
-	build = build.NewBuild(cfg, status, res, testId, projectId)
+	build := model.NewBuild(cfg, status, res, testId, projectId)
 	//make a request to create it
 	data, err := json.Marshal(build)
 	if err != nil {
@@ -52,8 +51,7 @@ func CreateBuild(authHeader string, url string, cfg *model.BuildConfig, status *
 }
 
 func UpdateBuild(authHeader string, url string, projectId string, testId string, buildId string, cfg *model.BuildConfig, status *model.BuildStatus, res []*model.BuildResult, action *model.BuildAction) error {
-	var build *model.Build
-	build = build.NewBuild(cfg, status, res, testId, projectId)
+	build := model.NewBuild(cfg, status, res, testId, projectId)
 	data, err := json.Marshal(build)
 	if err != nil {
 		return err
