@@ -7,7 +7,7 @@
                         <div class="column">
                             <h3 class="ui header">
                                 <span style="float: right">
-                                    <a ui-sref="dashboard.edit_projects({id: vm.projectDetails.id})" style="color: #006D95">Back To Edit Project View <i class="sign out icon"></i></a>
+                                    <a ui-sref="dashboard.edit_project({id: vm.projectDetails.id})" style="color: #006D95">Back To Edit Project View <i class="sign out icon"></i></a>
                                 </span>
                                 <div class="content">
                                     <i class="circle icon" ng-class="vm.projectDetails.status == 'Published' ? 'green' : vm.projectDetails.status == 'Tested' ? 'yellow' : 'red'"></i>
