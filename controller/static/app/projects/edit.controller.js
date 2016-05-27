@@ -108,6 +108,7 @@
         vm.cancelCreateSaveImage = cancelCreateSaveImage;
         vm.cancelEditSaveImage = cancelEditSaveImage;
         vm.enableSaveProject = enableSaveProject;
+        vm.isProjectBuilt = isProjectBuilt;
 
         vm.handlePickProviderType = handlePickProviderType;
         vm.handlePickProvider = handlePickProvider;
@@ -115,6 +116,7 @@
         vm.getRegistries();
         vm.getImages(vm.project.id);
         vm.getTests(vm.project.id);
+        vm.isProjectBuilt(vm.project.id);
 
         vm.randomCreateId = null;
         vm.randomEditId = null;
@@ -881,6 +883,7 @@
                     console.log("polls done" + " .." + status);
                     console.log(status);
                     builds[testId].status = status;
+                    vm.isBuild = true;
                 }, function(data) {
                     vm.error = data;
                 });
@@ -934,6 +937,15 @@
 
         function enableSaveProject() {
             vm.projectIsUpdated = true;
+        }
+
+        function isProjectBuilt(id) {
+            return ProjectService.results(id)
+                .then(function(data) {
+                    vm.isBuild = true;
+                }, function(data) {
+                    vm.isBuild = false;
+                });
         }
 
     }
