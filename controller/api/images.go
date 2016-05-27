@@ -63,10 +63,9 @@ func (a *Api) getImages(w http.ResponseWriter, r *http.Request) {
 func (a *Api) getImage(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
-	projId := vars["projectId"]
 	imageId := vars["imageId"]
 
-	test, err := a.manager.GetImage(projId, imageId)
+	test, err := a.manager.GetImage(imageId)
 	if err != nil {
 		log.Errorf("error retrieving image: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -85,7 +84,7 @@ func (a *Api) updateImage(w http.ResponseWriter, r *http.Request) {
 	projId := vars["projectId"]
 	imageId := vars["imageId"]
 
-	image, err := a.manager.GetImage(projId, imageId)
+	image, err := a.manager.GetImage(imageId)
 	if err != nil {
 		log.Errorf("error updating image: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -112,7 +111,7 @@ func (a *Api) deleteImage(w http.ResponseWriter, r *http.Request) {
 	projId := vars["projectId"]
 	imageId := vars["imageId"]
 
-	image, err := a.manager.GetImage(projId, imageId)
+	image, err := a.manager.GetImage(imageId)
 	if err != nil {
 		log.Errorf("error deleting image: %s", err)
 		http.Error(w, err.Error(), http.StatusNotFound)

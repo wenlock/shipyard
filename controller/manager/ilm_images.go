@@ -53,7 +53,7 @@ func (m DefaultManager) PullImage(image model.Image) error {
 		}
 	}
 
-	auth := dockerclient.AuthConfig{username, password, ""}
+	auth := dockerclient.AuthConfig{username, password, "",""}
 
 	fmt.Printf("Image does not exist locally. Pulling image %s ... \n", image.PullableName())
 	ticker := time.NewTicker(time.Second * 15)
@@ -77,6 +77,29 @@ func (m DefaultManager) PullImage(image model.Image) error {
 	return nil
 }
 
+func (m DefaultManager) GetImagesByIds(ids []string) ([]*model.Image, error) {
+
+	genIds := make([]interface{},len(ids))
+	genIds = append(genIds, ids)
+	res, err := r.Table(tblNameImages).GetAll(genIds...).Run(m.session)
+
+	defer res.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	images := []*model.Image{}
+	if err := res.All(&images); err != nil {
+		return nil, err
+	}
+
+	for _, image := range images {
+		m.injectRegistryInfo(image)
+	}
+	return images, nil
+}
+
 //methods related to the Image structure
 func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 
@@ -96,7 +119,7 @@ func (m DefaultManager) GetImages(projectId string) ([]*model.Image, error) {
 	return images, nil
 }
 
-func (m DefaultManager) GetImage(projectId string, imageId string) (*model.Image, error) {
+func (m DefaultManager) GetImage(imageId string) (*model.Image, error) {
 	var image *model.Image
 	res, err := r.Table(tblNameImages).Filter(map[string]string{"id": imageId}).Run(m.session)
 	defer res.Close()
@@ -150,7 +173,7 @@ func (m DefaultManager) CreateImage(projectId string, image *model.Image) error 
 func (m DefaultManager) UpdateImage(projectId string, image *model.Image) error {
 	var eventType string
 	// check if exists; if so, update
-	rez, err := m.GetImage(projectId, image.ID)
+	rez, err := m.GetImage(image.ID)
 	if err != nil && err != ErrImageDoesNotExist {
 		return err
 	}
@@ -187,7 +210,7 @@ func (m DefaultManager) UpdateImage(projectId string, image *model.Image) error 
 func (m DefaultManager) UpdateImageIlmTags(projectId string, imageId string, ilmTag string) error {
 	var eventType string
 	// check if exists; if so, update
-	rez, err := m.GetImage(projectId, imageId)
+	rez, err := m.GetImage(imageId)
 	if err != nil && err != ErrImageDoesNotExist {
 		return err
 	}

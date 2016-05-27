@@ -80,7 +80,6 @@ func (m DefaultManager) UpdateProvider(provider *model.Provider) error {
 	if prov != nil {
 		updates := map[string]interface{}{
 			"name":              provider.Name,
-			"availableJobTypes": provider.AvailableJobTypes,
 			"config":            provider.Config,
 			"url":               provider.Url,
 			"providerJobs":      provider.ProviderJobs,

@@ -143,11 +143,11 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 		apiRouter.HandleFunc("/api/ilm_images/{id}", a.deleteImage).Methods("DELETE")*/
 
 	//Result Related routes
-	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.createResult).Methods("POST")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.getResults).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.getResult).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.updateResult).Methods("PUT")
-	apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.deleteResult).Methods("DELETE")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results", a.createResult).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/results", a.getProjectResults).Methods("GET")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.getResult).Methods("GET")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.updateResult).Methods("PUT")
+	//apiRouter.HandleFunc("/api/projects/{projectId}/results/{resultId}", a.deleteResult).Methods("DELETE")
 	//end Result related routes
 
 	//Test related routes
@@ -158,13 +158,22 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.deleteTest).Methods("DELETE")
 
 	//Build Related routes
-	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.createBuild).Methods("POST")
-	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.getBuilds).Methods("GET")
+	// Execute or alter the execution of a Build
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.executeBuild).Methods("POST")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.updateBuildExecution).Methods("PUT")
+	// Retrieve information about a Build (including its results)
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.getBuildsByTestId).Methods("GET")
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.getBuild).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/results", a.getBuildResults).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.getBuildStatus).Methods("GET")
-	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/{action}", a.updateBuild).Methods("PUT")
+	// Delete a Build
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.deleteBuild).Methods("DELETE")
+	// CRUD BuildResults - useful for Providers updating a Build
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/results", a.getBuildResults).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/results", a.addBuildResult).Methods("POST")
+
+	// CRUD only the status part of the Build (no results embedded)
+	// Useful also for clients, including Providers
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/status", a.getBuildStatus).Methods("GET")
+	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}/status", a.updateBuildStatus).Methods("PUT")
 	//end Build related routes
 
 	//Provider related routes

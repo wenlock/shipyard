@@ -58,12 +58,9 @@ func (m MockManager) UpdateTest(projectId string, test *model.Test) error   { re
 func (m MockManager) DeleteTest(projectId string, testId string) error      { return nil }
 func (m MockManager) DeleteAllTests() error                                 { return nil }
 
-func (m MockManager) GetResults(projectId string) (*model.Result, error)          { return nil, nil }
-func (m MockManager) GetResult(projectId, resultId string) (*model.Result, error) { return nil, nil }
-func (m MockManager) CreateResult(projectId string, result *model.Result) error   { return nil }
-func (m MockManager) UpdateResult(projectId string, result *model.Result) error   { return nil }
-func (m MockManager) DeleteResult(projectId string, resultId string) error        { return nil }
-func (m MockManager) DeleteAllResults() error                                     { return nil }
+func (m MockManager) GetProjectResults(projectId string) (*model.ProjectResults, error) {
+	return nil, nil
+}
 
 func (m MockManager) GetProviders() ([]*model.Provider, error)               { return nil, nil }
 func (m MockManager) GetProvider(providerId string) (*model.Provider, error) { return nil, nil }
@@ -82,7 +79,7 @@ func (m MockManager) DeleteAllProviders() error {
 func (m MockManager) GetBuilds(projectId string, testId string) ([]*model.Build, error) {
 	return nil, nil
 }
-func (m MockManager) GetBuild(projectId string, testId string, buildId string) (*model.Build, error) {
+func (m MockManager) GetBuild(buildId string) (*model.Build, error) {
 	return nil, nil
 }
 func (m MockManager) UpdateBuild(projectId string, testId string, buildId string, action *model.BuildAction) error {
@@ -118,7 +115,7 @@ func (m MockManager) CreateImage(projectId string, image *model.Image) error {
 	return nil
 }
 
-func (m MockManager) GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error) {
+func (m MockManager) GetBuildResults(buildId string) ([]*model.BuildResult, error) {
 	return nil, nil
 }
 

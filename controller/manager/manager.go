@@ -117,7 +117,7 @@ type (
 		PullImage(image model.Image) error
 
 		GetImages(projectId string) ([]*model.Image, error)
-		GetImage(projectId, imageId string) (*model.Image, error)
+		GetImage(imageId string) (*model.Image, error)
 		CreateImage(projectId string, image *model.Image) error
 		UpdateImage(projectId string, image *model.Image) error
 		UpdateImageIlmTags(projectId string, imageId string, ilmTag string) error
@@ -125,30 +125,34 @@ type (
 		DeleteAllImages() error
 
 		GetTests(projectId string) ([]*model.Test, error)
-		GetTest(projectId, testId string) (*model.Test, error)
+		GetTest(testId string) (*model.Test, error)
 		CreateTest(projectId string, test *model.Test) error
 		UpdateTest(projectId string, test *model.Test) error
 		DeleteTest(projectId string, testId string) error
 		DeleteAllTests() error
 
-		GetResults(projectId string) (*model.Result, error)
-		GetResult(projectId, resultId string) (*model.Result, error)
-		CreateResult(projectId string, result *model.Result) error
-		UpdateResult(projectId string, result *model.Result) error
-		DeleteResult(projectId string, resultId string) error
-		DeleteAllResults() error
+		//GetResults(projectId string) (*model.Result, error)
+		//GetResult(projectId, resultId string) (*model.Result, error)
+		//CreateResult(projectId string, result *model.Result) error
+		//UpdateResult(projectId string, result *model.Result) error
+		//DeleteResult(projectId string, resultId string) error
+		//DeleteAllResults() error
+		//
+		//GetBuilds(projectId string, testId string) ([]*model.Build, error)
+		//GetBuild(projectId string, testId string, buildId string) (*model.Build, error)
+		//GetBuildById(buildId string) (*model.Build, error)
+		GetProjectResults(projectId string) (*model.ProjectResults, error)
+		GetBuildsByTestId(testId string) ([]*model.Build, error)
+		GetBuild(buildId string) (*model.Build, error)
 
-		GetBuilds(projectId string, testId string) ([]*model.Build, error)
-		GetBuild(projectId string, testId string, buildId string) (*model.Build, error)
-		GetBuildById(buildId string) (*model.Build, error)
-		GetBuildStatus(projectId string, testId string, buildId string) (string, error)
-		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
+		GetBuildStatus(buildId string) (string, error)
+		GetBuildResults(buildId string) ([]*model.BuildResult, error)
 
-		CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error)
+		ExecuteBuild(testId string, buildAction *model.BuildAction) (string, error)
 		UpdateBuildResults(buildId string, result *model.BuildResult) error
-		UpdateBuildStatus(buildId string, status string) error
-		UpdateBuild(projectId string, testId string, buildId string, buildAction *model.BuildAction) error
-		DeleteBuild(projectId string, testId string, buildId string) error
+		UpdateBuildStatus(*model.Build, *model.BuildStatus) error
+		UpdateBuild(buildId string, buildAction *model.BuildAction) error
+		DeleteBuild(buildId string) error
 		DeleteAllBuilds() error
 
 		GetProviders() ([]*model.Provider, error)
@@ -206,6 +210,8 @@ func NewManager(addr string, database string, authKey string, client *dockerclie
 		Address:  addr,
 		Database: database,
 		AuthKey:  authKey,
+		MaxIdle:  10,
+		MaxOpen: 20,
 	})
 	if err != nil {
 		return nil, err
@@ -341,7 +347,7 @@ func (m DefaultManager) ScaleContainer(id string, numInstances int) ScaleResult 
 			// clear hostname to get a newly generated
 			config.Hostname = ""
 			hostConfig := containerInfo.HostConfig
-			id, err := m.client.CreateContainer(config, "")
+			id, err := m.client.CreateContainer(config, "",nil)
 			if err != nil {
 				errChan <- err
 				return

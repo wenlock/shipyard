@@ -22,7 +22,7 @@ func (m DefaultManager) GetTests(projectId string) ([]*model.Test, error) {
 	return tests, nil
 }
 
-func (m DefaultManager) GetTest(projectId, testId string) (*model.Test, error) {
+func (m DefaultManager) GetTest(testId string) (*model.Test, error) {
 	var test *model.Test
 	res, err := r.Table(tblNameTests).Filter(map[string]string{"id": testId}).Run(m.session)
 	defer res.Close()
@@ -62,7 +62,7 @@ func (m DefaultManager) CreateTest(projectId string, test *model.Test) error {
 func (m DefaultManager) UpdateTest(projectId string, test *model.Test) error {
 	var eventType string
 	// check if exists; if so, update
-	rez, err := m.GetTest(projectId, test.ID)
+	rez, err := m.GetTest(test.ID)
 	if err != nil && err != ErrTestDoesNotExist {
 		return err
 	}
@@ -74,9 +74,8 @@ func (m DefaultManager) UpdateTest(projectId string, test *model.Test) error {
 			"name":             test.Name,
 			"targets":          test.Targets,
 			"selectedTestType": test.SelectedTestType,
-			"ProviderType":     test.Provider.ProviderType,
-			"providerName":     test.Provider.ProviderName,
-			"providerTest":     test.Provider.ProviderTest,
+			"provider":         test.Provider,
+			"providerJob":      test.ProviderJob,
 			"onSuccess":        test.Tagging.OnSuccess,
 			"onFailure":        test.Tagging.OnFailure,
 			"fromTag":          test.FromTag,

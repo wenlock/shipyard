@@ -1,119 +1,88 @@
 package manager
 
 import (
-	"fmt"
-	r "github.com/dancannon/gorethink"
+	"errors"
+	log "github.com/Sirupsen/logrus"
 	"github.com/shipyard/shipyard/model"
+	"time"
+)
+
+const (
+	ErrProjectResultsPreffixMsg = "Error in getting project results. "
 )
 
 // Methods related to the results structure
-func (m DefaultManager) GetResults(projectId string) (*model.Result, error) {
+func (m DefaultManager) GetProjectResults(projectId string) (*model.ProjectResults, error) {
 
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"projectId": projectId}).Run(m.session)
-	defer res.Close()
-	if err != nil {
-		return nil, err
-	}
-	var result *model.Result
-	if err := res.One(&result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (m DefaultManager) GetResult(projectId, resultId string) (*model.Result, error) {
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Run(m.session)
-	defer res.Close()
-	if err != nil {
-		return nil, err
-	}
-	if res.IsNil() {
-		return nil, ErrResultDoesNotExist
-	}
-	var result *model.Result
-	if err := res.One(&result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (m DefaultManager) CreateResult(projectId string, result *model.Result) error {
-	var eventType string
-
-	tmpResult, err := m.GetResult(projectId, result.ID)
-	if err != nil && err != ErrResultDoesNotExist {
-		return err
-	}
-
-	if tmpResult != nil {
-		return ErrResultExists
-	}
-
-	result.ProjectId = projectId
-	response, err := r.Table(tblNameResults).Insert(result).RunWrite(m.session)
+	project, err := m.Project(projectId)
 
 	if err != nil {
-		return err
+		return nil, errors.New(ErrProjectResultsPreffixMsg + "Project does not exist")
 	}
-	eventType = "add-result"
 
-	result.ID = func() string {
-		if len(response.GeneratedKeys) > 0 {
-			return string(response.GeneratedKeys[0])
-		}
-		return ""
-	}()
+	tests, err := m.GetTests(project.ID)
 
-	m.logEvent(eventType, fmt.Sprintf("id=%s", result.ID), []string{"security"})
-
-	return nil
-}
-func (m DefaultManager) UpdateResult(projectId string, inputResult *model.Result) error {
-	var eventType string
-
-	// check if exists; if so, update
-	existingResult, err := m.GetResults(projectId)
-	if err != nil && err != ErrResultDoesNotExist {
-		return err
+	if err != nil {
+		return nil, errors.New(ErrProjectResultsPreffixMsg + "Could not retrieve project tests")
 	}
-	// update
-	if existingResult != nil {
-		for _, result := range inputResult.TestResults {
-			existingResult.TestResults = append(existingResult.TestResults, result)
+
+	testResults := []*model.TestResult{}
+
+	for _, test := range tests {
+		builds, err := m.GetBuildsByTestId(test.ID)
+
+		if err != nil {
+			log.Warnf("Could not get builds for test %s", test.ID)
+			continue
 		}
 
-		if _, err := r.Table(tblNameResults).Filter(map[string]string{"projectId": projectId}).Update(existingResult).RunWrite(m.session); err != nil {
-			return err
+		for _, build := range builds {
+			for _, buildResult := range build.Results {
+				status := "failed"
+				if buildResult.Successful {
+					status = "success"
+				}
+				image, err := m.GetImage(buildResult.TargetArtifact.ID)
+				if err != nil {
+					continue
+				}
+				testResult := &model.TestResult{
+					ImageId:       image.ID,
+					ImageName:     image.Name,
+					BuildId:       buildResult.BuildId,
+					DockerImageId: "TODO: insert docker image id",
+					TestId:        test.ID,
+					TestName:      test.Name,
+					// TODO: block value should be extracted from Test, but no value in it.
+					Blocker: false,
+					Status:  status,
+					// Reusing the timestamps from the build and buildResult objects
+					Date:       build.StartTime,
+					EndDate:    buildResult.TimeStamp,
+					AppliedTag: image.IlmTags,
+					// TODO: what should be an adequate action in this case? the name of the test in the Provider?
+					Action: test.ProviderJob.Name,
+				}
+				testResults = append(testResults, testResult)
+			}
 		}
-
-		eventType = "update-result"
+	}
+	STUB_TIME_CHANGE_ME := time.Now()
+	// TODO: address issues of outdated or unncessary fields in the ProjectResult model.
+	projectResults := &model.ProjectResults{
+		ProjectId:      project.ID,
+		Description:    project.Description,
+		BuildId:        "TODO: remove this field",
+		RunDate:        STUB_TIME_CHANGE_ME,
+		EndDate:        STUB_TIME_CHANGE_ME,
+		CreateDate:     STUB_TIME_CHANGE_ME,
+		Author:         project.Author,
+		ProjectVersion: "TODO: remove this field, no project version in project model anyways.",
+		LastTagApplied: "TODO: remove this field, tags are managed in builds and images, not project level",
+		LastUpdate:     STUB_TIME_CHANGE_ME,
+		Updater:        "TODO: remove this field, what does it mean? is it the author?",
+		TestResults:    testResults,
 	}
 
-	m.logEvent(eventType, fmt.Sprintf("id=%s", existingResult.ID), []string{"security"})
-
-	return nil
-}
-func (m DefaultManager) DeleteResult(projectId string, resultId string) error {
-	res, err := r.Table(tblNameResults).Filter(map[string]string{"id": resultId}).Delete().Run(m.session)
-	defer res.Close()
-	if err != nil {
-		return err
-	}
-
-	if res.IsNil() {
-		return ErrResultDoesNotExist
-	}
-
-	m.logEvent("delete-result", fmt.Sprintf("id=%s", resultId), []string{"security"})
-
-	return nil
-}
-func (m DefaultManager) DeleteAllResults() error {
-	res, err := r.Table(tblNameResults).Delete().Run(m.session)
-	defer res.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return projectResults, nil
 }

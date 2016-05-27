@@ -9,6 +9,8 @@ services:
       - "8083:8080"
       - "8084:28015"
       - "8085:29015"
+    networks:
+      - sy_network
 
   proxy:
     env_file: .env
@@ -19,6 +21,8 @@ services:
     ports:
       - "2375"
     command: -D
+    networks:
+      - sy_network
 
   swarm:
     env_file: .env
@@ -27,6 +31,8 @@ services:
     command: m --host tcp://0.0.0.0:2375 proxy:2375
     ports:
       - "2375"
+    networks:
+      - sy_network
 
   controller:
     env_file: .env
@@ -45,29 +51,8 @@ services:
       - "9279"
     depends_on:
       - rethinkdb
+    networks:
+      - sy_network
 
-  postgres:
-    hostname: postgres
-    image: postgres:9.4.5
-    environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - /tmp/postgres:/var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
-
-  clair:
-    env_file: .env
-    image: quay.io/coreos/clair:v1.1.0
-    volumes:
-      - ./clair_config:/config:ro
-      - /tmp/clair-data:/tmp
-    entrypoint: /bin/bash
-    command: -c "sleep 30 && clair --config=/config/config.yaml"
-    ports:
-      - "6060:6060"
-      - "6061:6061"
-    depends_on:
-      - postgres
-      - controller
+networks:
+  sy_network:

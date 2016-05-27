@@ -41,16 +41,20 @@ func (m DefaultManager) Project(id string) (*model.Project, error) {
 		return nil, err
 	}
 
-	project.Images, err = m.GetImages(project.ID)
+	images, err := m.GetImages(project.ID)
 
 	if err != nil {
-		return nil, ErrProjectImagesProblem
+		return nil, err
 	}
-	project.Tests, err = m.GetTests(project.ID)
+
+	project.Images = images
+	tests, err := m.GetTests(project.ID)
 
 	if err != nil {
 		return nil, ErrProjectTestsProblem
 	}
+
+	project.Tests = tests
 
 	return project, nil
 }

@@ -1,0 +1,26 @@
+package: github.com/shipyard/shipyard
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/codegangsta/cli
+- package: github.com/codegangsta/negroni
+- package: github.com/dancannon/gorethink
+- package: github.com/docker/engine-api
+  subpackages:
+  - client
+  - types
+- package: github.com/gorilla/context
+- package: github.com/gorilla/mux
+- package: github.com/gorilla/sessions
+- package: github.com/mailgun/oxy
+  subpackages:
+  - forward
+- package: github.com/nu7hatch/gouuid
+- package: github.com/samalba/dockerclient
+- package: golang.org/x/crypto
+  subpackages:
+  - bcrypt
+- package: golang.org/x/net
+  subpackages:
+  - context
+  - websocket
+- package: gopkg.in/ldap.v1

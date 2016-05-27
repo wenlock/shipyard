@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package ctxhttp provides helper functions for performing context-aware HTTP requests.
-package ctxhttp
+package ctxhttp // import "golang.org/x/net/context/ctxhttp"
 
 import (
 	"io"
@@ -12,6 +12,14 @@ import (
 	"strings"
 
 	"golang.org/x/net/context"
+)
+
+func nop() {}
+
+var (
+	testHookContextDoneBeforeHeaders = nop
+	testHookDoReturned               = nop
+	testHookDidBodyClose             = nop
 )
 
 // Do sends an HTTP request with the provided http.Client and returns an HTTP response.
@@ -31,8 +39,14 @@ func Do(ctx context.Context, client *http.Client, req *http.Request) (*http.Resp
 	}
 	result := make(chan responseAndError, 1)
 
+	// Make local copies of test hooks closed over by goroutines below.
+	// Prevents data races in tests.
+	testHookDoReturned := testHookDoReturned
+	testHookDidBodyClose := testHookDidBodyClose
+
 	go func() {
 		resp, err := client.Do(req)
+		testHookDoReturned()
 		result <- responseAndError{resp, err}
 	}()
 
@@ -40,7 +54,15 @@ func Do(ctx context.Context, client *http.Client, req *http.Request) (*http.Resp
 
 	select {
 	case <-ctx.Done():
+		testHookContextDoneBeforeHeaders()
 		cancel()
+		// Clean up after the goroutine calling client.Do:
+		go func() {
+			if r := <-result; r.resp != nil {
+				testHookDidBodyClose()
+				r.resp.Body.Close()
+			}
+		}()
 		return nil, ctx.Err()
 	case r := <-result:
 		var err error

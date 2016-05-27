@@ -1,0 +1,104 @@
+hash: a43b16c41647a09fe0ed8decb348b30061eb57010e92f0a6a97f59a9a9f8eaf7
+updated: 2016-05-19T23:06:16.90123305-04:00
+imports:
+- name: github.com/cenkalti/backoff
+  version: c29158af31815ccc31ca29c86c121bc39e00d3d8
+- name: github.com/codegangsta/cli
+  version: 0eb4e0be6c214f8904ef6989b11072c7b897c657
+- name: github.com/codegangsta/negroni
+  version: dc45282b3653ee198a3c06a82bc7847b03666497
+- name: github.com/dancannon/gorethink
+  version: 3ba11fcac3f069e1c0508f5404d075a1d0c4dc76
+- name: github.com/docker/distribution
+  version: 4a915d6efdea23f437cb4144211aaf2faed27774
+  subpackages:
+  - reference
+  - digest
+- name: github.com/docker/engine-api
+  version: a91a1072b526b96cb5399b83fc6dae36300312a5
+  subpackages:
+  - client
+  - types
+  - client/transport
+  - client/transport/cancellable
+  - types/container
+  - types/filters
+  - types/network
+  - types/reference
+  - types/registry
+  - types/time
+  - types/blkiodev
+  - types/strslice
+  - types/versions
+- name: github.com/docker/go-connections
+  version: c7838b258fbfa3fe88eecfb2a0e08ea0dbd6a646
+  subpackages:
+  - sockets
+  - tlsconfig
+  - nat
+- name: github.com/docker/go-units
+  version: 5d2041e26a699eaca682e2ea41c8f891e1060444
+- name: github.com/golang/protobuf
+  version: 8d92cf5fc15a4382f8964b08e1f42a75c0591aa3
+  subpackages:
+  - proto
+- name: github.com/gorilla/context
+  version: a8d44e7d8e4d532b6a27a02dd82abb31cc1b01bd
+- name: github.com/gorilla/mux
+  version: 9c19ed558d5df4da88e2ade9c8940d742aef0e7e
+- name: github.com/gorilla/securecookie
+  version: 667fe4e3466a040b780561fe9b51a83a3753eefc
+- name: github.com/gorilla/sessions
+  version: a4e6dd28f9e9274729417506b9bd0a6c3edb91ce
+- name: github.com/hailocab/go-hostpool
+  version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
+- name: github.com/mailgun/oxy
+  version: 11677428db34c4a05354d66d028174d0e3c6e905
+  subpackages:
+  - forward
+- name: github.com/Microsoft/go-winio
+  version: 4f1a71750d95a5a8a46c40a67ffbed8129c2f138
+- name: github.com/nu7hatch/gouuid
+  version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
+- name: github.com/opencontainers/runc
+  version: e574996911506b0598903e192d1c58b35e55428b
+  subpackages:
+  - libcontainer/user
+- name: github.com/samalba/dockerclient
+  version: 91d7393ff85980ba3a8966405871a3d446ca28f2
+- name: github.com/Sirupsen/logrus
+  version: cd7d1bbe41066b6c1f19780f895901052150a575
+- name: github.com/vulcand/oxy
+  version: 11677428db34c4a05354d66d028174d0e3c6e905
+  subpackages:
+  - utils
+- name: golang.org/x/crypto
+  version: 5bcd134fee4dd1475da17714aac19c0aa0142e2f
+  subpackages:
+  - bcrypt
+  - pbkdf2
+  - blowfish
+- name: golang.org/x/net
+  version: 4876518f9e71663000c348837735820161a42df7
+  subpackages:
+  - context
+  - websocket
+  - proxy
+- name: golang.org/x/sys
+  version: d4feaf1a7e61e1d9e79e6c4e76c6349e9cab0a03
+  subpackages:
+  - unix
+  - windows
+- name: gopkg.in/asn1-ber.v1
+  version: 4e86f4367175e39f69d9358a5f17b4dda270378d
+- name: gopkg.in/dancannon/gorethink.v2
+  version: 3ba11fcac3f069e1c0508f5404d075a1d0c4dc76
+  subpackages:
+  - encoding
+  - ql2
+  - types
+- name: gopkg.in/fatih/pool.v2
+  version: cba550ebf9bce999a02e963296d4bc7a486cb715
+- name: gopkg.in/ldap.v1
+  version: 0041a412703908abb6602d225f874508dcfddd74
+devImports: []
