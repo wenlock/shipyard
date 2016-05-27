@@ -976,7 +976,7 @@
                                             <div ng-class="{'loading': vm.buttonLoadStatus(test.id)}" ng-click="vm.startBuild(test.id)" class="basic compact blue ui icon button">
                                                 <i class="play icon"></i>
                                             </div>
-                                            <div ng-click="vm.showBuildResults(image)" class="basic compact blue ui icon button">
+                                            <div ui-sref="dashboard.inspect_project({id: vm.project.id, projectName: vm.project.name})" class="basic compact blue ui icon button" ng-class="{disabled: !vm.isBuild}">
                                                 <i class="search icon"></i>
                                             </div>
                                             <div ng-click="vm.showDeleteTestDialog(test)" class="basic compact blue ui icon button">
