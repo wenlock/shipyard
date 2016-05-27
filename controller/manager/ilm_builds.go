@@ -45,7 +45,7 @@ func (m DefaultManager) GetBuild(buildId string) (*model.Build, error) {
 	if err := res.One(&build); err != nil {
 		return nil, err
 	}
-	log.Info("return build")
+
 	return build, nil
 }
 
@@ -426,7 +426,7 @@ func (m DefaultManager) UpdateBuild(buildId string, buildAction *model.BuildActi
 
 }
 
-func (m DefaultManager) UpdateBuildResults(buildId string, result *model.BuildResult) error {
+func (m DefaultManager) UpdateBuildResults(buildId string, results []*model.BuildResult) error {
 	var eventType string
 
 	_, err := r.Table(tblNameBuilds).Get(buildId).Update(
@@ -444,6 +444,7 @@ func (m DefaultManager) UpdateBuildResults(buildId string, result *model.BuildRe
 
 	return nil
 }
+
 func (m DefaultManager) UpdateBuildStatus(build *model.Build, buildStatus *model.BuildStatus) error {
 
 	status := buildStatus.Status
@@ -468,8 +469,8 @@ func (m DefaultManager) UpdateBuildStatus(build *model.Build, buildStatus *model
 
 	if err != nil {
 		log.Error("Could not set the build status go %s for build with id %s",status, build.ID)
-			return err
-		}
+		return err
+	}
 
 	eventType := "update-build-status"
 
@@ -502,3 +503,43 @@ func (m DefaultManager) DeleteAllBuilds() error {
 
 	return nil
 }
+
+func (m DefaultManager) FetchIDForImage(image string) (string, error) {
+	localImages, err := apiClient.GetLocalImages(m.DockerClient().URL.String())
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	var imageId string
+	for _, localImage := range localImages {
+		imageRepoTags := localImage.RepoTags
+		for _, imageRepoTag := range imageRepoTags {
+			if imageRepoTag == image {
+				imageId = localImage.ID
+			}
+		}
+	}
+
+	return imageId, nil
+}
+
+func (m DefaultManager) CreateOrUpdateResults(id string, result *model.Result) error {
+	log.Debugf("Updating Project Results for project %s.", id)
+
+	existingResult, _ := m.GetResults(id)
+
+	var err error
+
+	if existingResult != nil {
+		log.Debugf("Result for project %s already exists. Updating project result...", id)
+		err = m.UpdateResult(id, result)
+	} else {
+		log.Debugf("Result for project %s does not yet exists. Creating project result...", id)
+		err = m.CreateResult(id, result)
+	}
+
+	return err
+}
+
+

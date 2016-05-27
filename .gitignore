@@ -6,5 +6,8 @@ bower_components
 .idea/
 *.iml
 docker-compose.override.yml
+docker-compose.debug.yml
 shipyard
 .env
+debug
+debug.sh
