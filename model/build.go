@@ -78,7 +78,7 @@ type BuildStatus struct {
 	Status  string `json:"status" gorethink:"status"`
 }
 
-func (b *BuildStatus) NewBuildStatus(buildId string, status string) *BuildStatus {
+func NewBuildStatus(buildId string, status string) *BuildStatus {
 
 	return &BuildStatus{
 		BuildId: buildId,
@@ -91,7 +91,7 @@ type BuildAction struct {
 	Action string `json:"action" gorethink:"action"`
 }
 
-func (b *BuildStatus) NewBuildAction(action string) *BuildAction {
+func NewBuildAction(action string) *BuildAction {
 
 	return &BuildAction{
 		Action: action,

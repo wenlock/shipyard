@@ -186,6 +186,17 @@
                     });
                 return promise;
             },
+            startProject: function(projectId) { 
+                $rootScope.skipSpinnerInterceptorList.push(projectId);
+                var promise = $http
+                    .post('/api/projects/' + projectId + '/builds')
+                    .then(function(response) {
+                        var interceptorEntry = $rootScope.skipSpinnerInterceptorList.indexOf(projectId);
+                        $rootScope.skipSpinnerInterceptorList.splice(interceptorEntry, 1);
+                        return response.data;
+                    });
+                return promise;
+            },
         ///api/projects/:id/tests/:testId/builds/:buildId
             pollBuild: function(projectId, testId, buildID) {
                 $rootScope.skipSpinnerInterceptorList.push(testId);

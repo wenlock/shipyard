@@ -94,7 +94,7 @@
                                 <i class="wrench icon"></i>
                             </div>
                             <div class="menu">
-                                <a ng-click="vm.showPlayProjectDialog(a)" class="item"><i class="black play icon"></i> Start</a>
+                                <a ng-click="vm.startProject(a.id)" class="item"><i class="black play icon"></i> Start</a>
                                 <a ng-click="vm.showStopProjectDialog(a)" class="item"><i class="black stop icon"></i> Stop</a>
                                 <a ng-click="vm.showRestartProjectDialog(a)" class="item"><i class="black refresh icon"></i> Restart</a>
                                 <a ui-sref="dashboard.edit_project({id: a.id})" class="item"><i class="black edit icon"></i> Edit</a>
@@ -133,7 +133,7 @@
         <i class="ban icon"></i>
         Clear
     </a>
-    <a class="item" ng-click="vm.startAll()">
+    <a class="item" ng-click="vm.startProject(a.id)">
         <i class="play icon"></i>
         Start
     </a>

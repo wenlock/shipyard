@@ -107,7 +107,7 @@ func (m MockManager) UpdateBuildResults(buildId string, result model.BuildResult
 func (m MockManager) VerifyIfImageExistsLocally(imageToCheck string) bool {
 	return false
 }
-func (m MockManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error) {
+func (m MockManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction, report chan string) (string, error) {
 	return "", nil
 }
 func (m MockManager) UpdateBuildStatus(buildId string, status string) error {

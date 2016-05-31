@@ -26,6 +26,7 @@
         vm.checkAll = checkAll;
         vm.clearAll = clearAll;
         vm.isProjectBuilt = isProjectBuilt;
+        vm.startProject = startProject;
 
         vm.showDeleteProjectDialog = showDeleteProjectDialog;
         vm.destroyProject = destroyProject;
@@ -138,6 +139,16 @@
                     return true;
                 }, function(data) {
                     return false;
+                });
+        }
+
+        function startProject(id) {
+            console.log("running project");
+            return ProjectService.startProject(id)
+                .then(function(data) {
+                    console.log("ran project");
+                }, function(data) {
+                    console.log("couldnt run project");
                 });
         }
 
