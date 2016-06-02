@@ -16,7 +16,7 @@ func (a *Api) dockerhubSearch(w http.ResponseWriter, r *http.Request) {
 
 	response, err := http.Get("https://index.docker.io/v1/search?q=" + query)
 	if err != nil {
-		http.Error(w, err.Error(), response.StatusCode)
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
@@ -24,7 +24,7 @@ func (a *Api) dockerhubSearch(w http.ResponseWriter, r *http.Request) {
 
 	contents, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		http.Error(w, err.Error(), response.StatusCode)
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
