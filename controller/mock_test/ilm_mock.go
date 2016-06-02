@@ -101,10 +101,10 @@ func (m MockManager) GetBuildStatus(projectId string, testId string, buildId str
 func (m MockManager) GetBuildById(buildId string) (*model.Build, error) {
 	return nil, nil
 }
-func (m MockManager) UpdateBuildResults(buildId string, result model.BuildResult) error {
+func (m MockManager) UpdateBuildResults(buildId string, results []*model.BuildResult) error {
 	return nil
 }
-func (m MockManager) VerifyIfImageExistsLocally(imageToCheck string) bool {
+func (m MockManager) VerifyIfImageExistsLocally(image model.Image) bool {
 	return false
 }
 func (m MockManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error) {
