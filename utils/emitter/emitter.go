@@ -1,5 +1,12 @@
 package emitter
 
+import (
+	//"time"
+	"errors"
+	"github.com/shipyard/shipyard/utils"
+	log "github.com/Sirupsen/logrus"
+)
+
 type Emitter struct {
 	Msg chan Message
 	listeners int
@@ -16,19 +23,46 @@ func NewEmitter() *Emitter {
 	return emitter
 }
 
+func (emitter *Emitter) GetListeners() int {
+	return emitter.listeners
+}
+
 func (emitter *Emitter) WaitForMessage() Message {
-	emitter.listeners = emitter.listeners + 1
+	emitter.listeners++
+	log.Printf("number of listeners: %v", emitter.listeners)
 	return <-emitter.Msg
 }
 
-func (emitter *Emitter) BroadcastMessage(category string, data interface{}) {
+func (emitter *Emitter) BroadcastMessage(
+	category string,
+	data interface{},
+	waitForListeners bool,
+	timeoutInSeconds int,
+) error {
+	if emitter.listeners == 0 && !waitForListeners {
+		return errors.New("No listeners to consume message broadcast")
+	}
+
 	msg := Message{
 		Category: category,
 		Data: data,
 	}
 
+	if waitForListeners {
+		timeout := utils.ChanTimeout(timeoutInSeconds)
+		select {
+		case emitter.Msg <- msg:
+			emitter.listeners--
+		case <-timeout:
+			return errors.New("No listeners were registered in the specified timeout")
+		}
+	}
+
 	for emitter.listeners != 0 {
 		emitter.Msg <- msg
-		emitter.listeners = emitter.listeners - 1
+		emitter.listeners--
+		log.Printf("sent msg. Listeners left: %v", emitter.listeners)
 	}
+
+	return nil
 }

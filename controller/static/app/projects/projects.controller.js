@@ -154,24 +154,20 @@
         }
 
         function refreshOnPushNotification() {
-            console.log("connecting to websocket");
-            var dataStream = $websocket('ws://localhost:8082/ws/updates', null, {reconnectIfNotNormalClose: true});
+            // TODO: make dynamic
+            var dataStream = $websocket('ws://localhost:8082/ws/updates');
             dataStream.onMessage(function(message) {
-                console.log(message.data);
                 if (message.data === "project-update") {
-                    console.log("updating.....");
                     vm.refresh()
                 }
             });
             dataStream.onClose(function() {
-                //refreshOnPushNotification();
             });
             dataStream.onOpen(function() {
-                console.log("Opened web docket");
             });
-            //$(window).on('beforeunload', function(){
-            //    dataStream.close();
-            //});
+            $(window).on('beforeunload', function(){
+                dataStream.close();
+            });
         }
 
     }

@@ -91,7 +91,7 @@ func (m DefaultManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Em
 	m.UpdateProject(project)
 
 	log.Printf("broadcasting mssg")
-	WsEmmitter.BroadcastMessage("project-update", struct{}{})
+	WsEmmitter.BroadcastMessage("project-update", struct{}{}, false, 0)
 	log.Printf("broadcasted mssg")
 
 	go func(project *model.Project) {
@@ -107,7 +107,7 @@ func (m DefaultManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Em
 		m.UpdateProject(project)
 
 		log.Printf("broadcasting mssg")
-		WsEmmitter.BroadcastMessage("project-update", struct{}{})
+		WsEmmitter.BroadcastMessage("project-update", struct{}{}, false, 0)
 		log.Printf("broadcasted mssg")
 	}(project)
 
