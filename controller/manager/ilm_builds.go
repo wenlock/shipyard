@@ -9,7 +9,7 @@ import (
 	apiClient "github.com/shipyard/shipyard/client"
 	"github.com/shipyard/shipyard/model"
 	"time"
-	"encoding/json"
+	"github.com/shipyard/shipyard/utils/emitter"
 )
 
 type executeBuildTasksResults struct {
@@ -80,22 +80,38 @@ func (m DefaultManager) GetBuildResults(projectId string, testId string, buildId
 	return build.Results, nil
 }
 
-func (m DefaultManager) CreateAllBuilds(projectId string) error {
+func (m DefaultManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Emitter) (string, error) {
 	project, err := m.Project(projectId)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	report := make(chan string)
+	project.Status = model.ProjectInProgressActionLabel
 
-	for i, test := range project.Tests {
-		m.CreateBuild(projectId, test.ID, model.NewBuildAction(model.BuildStartActionLabel), report)
-		i=i
-		res2B, _ := json.Marshal(<-report)
-		fmt.Println(string(res2B))
-	}
+	m.UpdateProject(project)
 
-	return nil
+	log.Printf("broadcasting mssg")
+	WsEmmitter.BroadcastMessage("project-update", struct{}{})
+	log.Printf("broadcasted mssg")
+
+	go func(project *model.Project) {
+		sync := make(chan string)
+
+		for _, test := range project.Tests {
+			m.CreateBuild(projectId, test.ID, model.NewBuildAction(model.BuildStartActionLabel), sync)
+			<-sync
+		}
+
+		project.Status = model.ProjectFinishedActionLabel
+
+		m.UpdateProject(project)
+
+		log.Printf("broadcasting mssg")
+		WsEmmitter.BroadcastMessage("project-update", struct{}{})
+		log.Printf("broadcasted mssg")
+	}(project)
+
+	return project.Status, nil
 }
 
 func (m DefaultManager) CreateBuild(

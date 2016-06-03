@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"github.com/shipyard/shipyard/utils/emitter"
 )
 
 const (
@@ -112,6 +113,7 @@ type (
 		UpdateProject(project *model.Project) error
 		DeleteProject(project *model.Project) error
 		DeleteAllProjects() error
+        	ProjectsUpdatedEvent() struct {}
 
 		VerifyIfImageExistsLocally(image model.Image) bool
 		PullImage(image model.Image) error
@@ -144,7 +146,7 @@ type (
 		GetBuildStatus(projectId string, testId string, buildId string) (string, error)
 		GetBuildResults(projectId string, testId string, buildId string) ([]*model.BuildResult, error)
 
-		CreateAllBuilds(projectId string) error
+		CreateAllBuilds(projectId string, WsEmmitter *emitter.Emitter) (string, error)
 		CreateBuild(projectId string, testId string, buildAction *model.BuildAction, report chan string) (string, error)
 		UpdateBuildResults(buildId string, results []*model.BuildResult) error
 		UpdateBuildStatus(buildId string, status string) error

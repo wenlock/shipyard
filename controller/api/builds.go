@@ -82,13 +82,13 @@ func (a *Api) createAllBuilds(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	projId := vars["projectId"]
 
-	err := a.manager.CreateAllBuilds(projId)
+	status, err := a.manager.CreateAllBuilds(projId, WsEmmitter)
 	if err != nil {
 		log.Errorf("error marshalling response for create build")
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
 	tempResponse := map[string]string{
-		"id": "dfsad",
+		"status": status,
 	}
 
 	jsonResponse, err := json.Marshal(tempResponse)

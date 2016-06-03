@@ -5,8 +5,8 @@
         .module('shipyard.projects')
         .controller('ProjectsController', ProjectsController);
 
-    ProjectsController.$inject = ['$scope', 'ProjectService', '$state'];
-    function ProjectsController($scope, ProjectService, $state) {
+    ProjectsController.$inject = ['$scope', 'ProjectService', '$state', '$websocket'];
+    function ProjectsController($scope, ProjectService, $state, $websocket) {
         var vm = this;
 
         vm.error = "";
@@ -32,6 +32,7 @@
         vm.destroyProject = destroyProject;
 
         refresh();
+        refreshOnPushNotification();
 
         // Apply jQuery to dropdowns in table once ngRepeat has finished rendering
         $scope.$on('ngRepeatFinished', function() {
@@ -143,13 +144,34 @@
         }
 
         function startProject(id) {
-            console.log("running project");
+            console.log("running project" + id);
             return ProjectService.startProject(id)
                 .then(function(data) {
                     console.log("ran project");
                 }, function(data) {
                     console.log("couldnt run project");
                 });
+        }
+
+        function refreshOnPushNotification() {
+            console.log("connecting to websocket");
+            var dataStream = $websocket('ws://localhost:8082/ws/updates', null, {reconnectIfNotNormalClose: true});
+            dataStream.onMessage(function(message) {
+                console.log(message.data);
+                if (message.data === "project-update") {
+                    console.log("updating.....");
+                    vm.refresh()
+                }
+            });
+            dataStream.onClose(function() {
+                //refreshOnPushNotification();
+            });
+            dataStream.onOpen(function() {
+                console.log("Opened web docket");
+            });
+            //$(window).on('beforeunload', function(){
+            //    dataStream.close();
+            //});
         }
 
     }

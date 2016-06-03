@@ -2,6 +2,13 @@ package model
 
 import "time"
 
+const (
+	ProjectNewActionLabel = "new"
+	ProjectInProgressActionLabel = "in_progress"
+	ProjectStoppedActionLabel = "stopped"
+	ProjectFinishedActionLabel = "finished"
+)
+
 // Please note that Images is not stored in the database as a nested collection (i.e. gorethink:"-")
 // Thus, if you want to pull images for a give project, you must assign those directly as a slice of Image structures
 type Project struct {

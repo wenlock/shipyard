@@ -5,6 +5,7 @@ import (
 	r "github.com/dancannon/gorethink"
 	"github.com/shipyard/shipyard/model"
 	"time"
+	//"github.com/shipyard/shipyard/controller/manager/longpoll"
 )
 
 // methods related to the Project structure
@@ -67,6 +68,7 @@ func (m DefaultManager) SaveProject(project *model.Project) error {
 	}
 	project.CreationTime = time.Now().UTC()
 	project.UpdateTime = project.CreationTime
+	project.Status = model.ProjectNewActionLabel
 	// TODO: find a way to retrieve the current user
 	project.Author = "author"
 
@@ -264,4 +266,7 @@ func (m DefaultManager) DeleteAllProjects() error {
 	return nil
 }
 
-// end methods related to the project structure
+func (m DefaultManager) ProjectsUpdatedEvent() struct {} {
+	return struct {} {}
+}
+
