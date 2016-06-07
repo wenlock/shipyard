@@ -7,6 +7,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/shipyard/shipyard/model"
+	"github.com/gorilla/websocket"
 )
 
 func (a *Api) projects(w http.ResponseWriter, r *http.Request) {
@@ -117,4 +118,28 @@ func (a *Api) deleteProject(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("deleted project: id=%s name=%s", project.ID, project.Name)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *Api) projectUpdates(w http.ResponseWriter, r *http.Request) {
+	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+
+	if _, ok := err.(websocket.HandshakeError); ok {
+		http.Error(w, "Not a websocket handshake", 400)
+		return
+	} else if err != nil {
+		log.Println(err)
+		return
+	}
+
+	defer func(){
+		conn.Close()
+		log.Printf("Closing websocket connection")
+	}()
+
+	for {
+		err = conn.WriteMessage(websocket.TextMessage, []byte(WsEmmitter.WaitForMessage().Category))
+		if err != nil {
+			break
+		}
+	}
 }

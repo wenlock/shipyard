@@ -16,6 +16,7 @@ import (
 	mAuth "github.com/shipyard/shipyard/controller/middleware/auth"
 	"github.com/shipyard/shipyard/utils/auth"
 	"github.com/shipyard/shipyard/utils/tlsutils"
+	"github.com/shipyard/shipyard/utils/emitter"
 	"golang.org/x/net/websocket"
 )
 
@@ -52,6 +53,12 @@ type (
 	}
 )
 
+var (
+	// This can be passed down to handlers to have them broadcast messages
+	// to our websocket connection `/ws/updates`
+	WsEmmitter *emitter.Emitter
+)
+
 func writeCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
@@ -73,12 +80,18 @@ func NewApi(config ApiConfig) (*Api, error) {
 
 func (a *Api) Setup() (*http.ServeMux, error) {
 
+	// Initialize our emitter.
+	// We will use this to broadcast updates.
+	WsEmmitter = emitter.NewEmitter()
+
+	// This launches a goroutine and creates channels for all the plumbing
+	var err error
+
 	globalMux := http.NewServeMux()
 	controllerManager := a.manager
 	client := a.manager.DockerClient()
 
 	// forwarder for swarm
-	var err error
 	a.fwd, err = forward.New()
 	if err != nil {
 		return nil, err
@@ -158,6 +171,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}", a.deleteTest).Methods("DELETE")
 
 	//Build Related routes
+	apiRouter.HandleFunc("/api/projects/{projectId}/builds", a.createAllBuilds).Methods("POST")
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.createBuild).Methods("POST")
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds", a.getBuilds).Methods("GET")
 	apiRouter.HandleFunc("/api/projects/{projectId}/tests/{testId}/builds/{buildId}", a.getBuild).Methods("GET")
@@ -239,6 +253,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	loginRouter.HandleFunc("/auth/login", a.login).Methods("POST")
 	globalMux.Handle("/auth/", loginRouter)
 	globalMux.Handle("/exec", websocket.Handler(a.execContainer))
+	globalMux.HandleFunc("/ws/updates", a.projectUpdates)
 
 	// hub handler; public
 	hubRouter := mux.NewRouter()

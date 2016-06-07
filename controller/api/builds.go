@@ -77,18 +77,39 @@ func (a *Api) getBuildResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (a *Api) createAllBuilds(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	projId := vars["projectId"]
+
+	status, err := a.manager.CreateAllBuilds(projId, WsEmmitter)
+	if err != nil {
+		log.Errorf("error marshalling response for create build")
+		http.Error(w, err.Error(), http.StatusNoContent)
+	}
+	tempResponse := map[string]string{
+		"status": status,
+	}
+
+	jsonResponse, err := json.Marshal(tempResponse)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(jsonResponse)
+	return
+}
+
 func (a *Api) createBuild(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	projId := vars["projectId"]
 	testId := vars["testId"]
 	action := vars["action"]
-	var status *model.BuildStatus
 	var buildId string
 	//hardcode action to start, temporarily
 	//this needs to be removed before going to production
 	action = "start"
-	buildAction := status.NewBuildAction(action)
-	buildId, err := a.manager.CreateBuild(projId, testId, buildAction)
+	buildAction := model.NewBuildAction(action)
+	buildId, err := a.manager.CreateBuild(projId, testId, buildAction, nil)
 	if err != nil {
 		log.Errorf("error creating build: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -120,8 +141,7 @@ func (a *Api) updateBuild(w http.ResponseWriter, r *http.Request) {
 	testId := vars["testId"]
 	buildId := vars["buildId"]
 	action := vars["action"]
-	var status *model.BuildStatus
-	buildAction := status.NewBuildAction(action)
+	buildAction := model.NewBuildAction(action)
 	build, err := a.manager.GetBuild(projId, testId, buildId)
 	if err != nil {
 		log.Errorf("error updating build: %s", err)
