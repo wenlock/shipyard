@@ -1,6 +1,9 @@
 package mock_test
 
-import "github.com/shipyard/shipyard/model"
+import (
+	"github.com/shipyard/shipyard/model"
+	"github.com/shipyard/shipyard/utils/emitter"
+)
 
 // TODO: add mock objects for Projects and Images (ILM) to helpers.go
 func (m MockManager) Projects() ([]*model.Project, error) {
@@ -107,7 +110,10 @@ func (m MockManager) UpdateBuildResults(buildId string, results []*model.BuildRe
 func (m MockManager) VerifyIfImageExistsLocally(image model.Image) bool {
 	return false
 }
-func (m MockManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error) {
+func (m MockManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction, report chan string) (string, error) {
+	return "", nil
+}
+func (m MockManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Emitter) (string, error) {
 	return "", nil
 }
 func (m MockManager) UpdateBuildStatus(buildId string, status string) error {

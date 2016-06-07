@@ -7,6 +7,7 @@
             'ngResource',
             'ngSanitize',
             'ui.router',
+            'ngWebSocket',
             'angularify.semantic.dropdown'
         ]);
 

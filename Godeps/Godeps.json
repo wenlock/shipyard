@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/shipyard/shipyard",
 	"GoVersion": "go1.5",
-	"GodepVersion": "v69",
+	"GodepVersion": "v74",
 	"Packages": [
 		"github.com/shipyard/shipyard",
 		"github.com/shipyard/shipyard/checker",
@@ -21,6 +21,7 @@
 		"github.com/shipyard/shipyard/utils/auth",
 		"github.com/shipyard/shipyard/utils/auth/builtin",
 		"github.com/shipyard/shipyard/utils/auth/ldap",
+		"github.com/shipyard/shipyard/utils/emitter",
 		"github.com/shipyard/shipyard/utils/tlsutils",
 		"github.com/shipyard/shipyard/version"
 	],
@@ -242,11 +243,17 @@
 			"Rev": "b6bcae186ac3099dba8fafce125dc930393f1e5e"
 		},
 		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.0.0-11-g3ddc984",
+			"Rev": "3ddc98405808dc90b76f43a2eddca8f12e244e2b"
+		},
+		{
 			"ImportPath": "github.com/hailocab/go-hostpool",
 			"Rev": "e80d13ce29ede4452c43dea11e79b9bc8a15b478"
 		},
 		{
 			"ImportPath": "github.com/jtolds/gls",
+			"Comment": "v4.2.0",
 			"Rev": "8ddce2a84170772b95dd5d576c48d517b22cac63"
 		},
 		{
@@ -307,33 +314,33 @@
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
-			"Comment": "1.6.0",
-			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+			"Comment": "1.6.0-6-g40711f7",
+			"Rev": "40711f7748186bbf9c99977cd89f21ce1a229447"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions/internal/go-render/render",
-			"Comment": "1.6.0",
-			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+			"Comment": "1.6.0-6-g40711f7",
+			"Rev": "40711f7748186bbf9c99977cd89f21ce1a229447"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions/internal/oglematchers",
-			"Comment": "1.6.0",
-			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+			"Comment": "1.6.0-6-g40711f7",
+			"Rev": "40711f7748186bbf9c99977cd89f21ce1a229447"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey",
-			"Comment": "1.6.1-2-g99f2b1e",
-			"Rev": "99f2b1e01343c8bc2d9d12f1194d2d68ce18b063"
+			"Comment": "1.6.2-2-gc53abc9",
+			"Rev": "c53abc99456fa3402dd33c15ee51c3e545e04a3f"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey/gotest",
-			"Comment": "1.6.1-2-g99f2b1e",
-			"Rev": "99f2b1e01343c8bc2d9d12f1194d2d68ce18b063"
+			"Comment": "1.6.2-2-gc53abc9",
+			"Rev": "c53abc99456fa3402dd33c15ee51c3e545e04a3f"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey/reporting",
-			"Comment": "1.6.1-2-g99f2b1e",
-			"Rev": "99f2b1e01343c8bc2d9d12f1194d2d68ce18b063"
+			"Comment": "1.6.2-2-gc53abc9",
+			"Rev": "c53abc99456fa3402dd33c15ee51c3e545e04a3f"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",

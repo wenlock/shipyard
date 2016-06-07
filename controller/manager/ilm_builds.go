@@ -9,6 +9,7 @@ import (
 	apiClient "github.com/shipyard/shipyard/client"
 	"github.com/shipyard/shipyard/model"
 	"time"
+	"github.com/shipyard/shipyard/utils/emitter"
 )
 
 type executeBuildTasksResults struct {
@@ -78,7 +79,47 @@ func (m DefaultManager) GetBuildResults(projectId string, testId string, buildId
 
 	return build.Results, nil
 }
-func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction *model.BuildAction) (string, error) {
+
+func (m DefaultManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Emitter) (string, error) {
+	project, err := m.Project(projectId)
+	if err != nil {
+		return "", err
+	}
+
+	project.ActionStatus = model.ProjectInProgressActionLabel
+
+	m.UpdateProject(project)
+
+	log.Printf("broadcasting mssg")
+	WsEmmitter.BroadcastMessage("project-update", struct{}{}, false, 0)
+	log.Printf("broadcasted mssg")
+
+	go func(project *model.Project) {
+		sync := make(chan string)
+
+		for _, test := range project.Tests {
+			m.CreateBuild(projectId, test.ID, model.NewBuildAction(model.BuildStartActionLabel), sync)
+			<-sync
+		}
+
+		project.ActionStatus = model.ProjectFinishedActionLabel
+
+		m.UpdateProject(project)
+
+		log.Printf("broadcasting mssg")
+		WsEmmitter.BroadcastMessage("project-update", struct{}{}, false, 0)
+		log.Printf("broadcasted mssg")
+	}(project)
+
+	return project.ActionStatus, nil
+}
+
+func (m DefaultManager) CreateBuild(
+	projectId string,
+	testId string,
+	buildAction *model.BuildAction,
+	report chan string,
+) (string, error) {
 
 	var eventType string
 	eventType = eventType
@@ -156,7 +197,7 @@ func (m DefaultManager) CreateBuild(projectId string, testId string, buildAction
 	log.Printf("Processing %d image(s)", len(imagesToBuild))
 
 	// Run build for each image (each image represents a build task)
-	go m.executeBuildTasks(project, test, build, imagesToBuild)
+	go m.executeBuildTasks(project, test, build, imagesToBuild, report)
 
 	// TODO: all these event types should be refactored as constants
 	eventType = "add-build"
@@ -169,6 +210,7 @@ func (m DefaultManager) executeBuildTasks(
 	test *model.Test,
 	build *model.Build,
 	imagesToBuild []*model.Image,
+	report chan string,
 ) {
 	log.Debugf("Executing builds for images %v as part of test %s", imagesToBuild, test.Name)
 
@@ -223,6 +265,11 @@ func (m DefaultManager) executeBuildTasks(
 	// Update status for our build
 	if err := m.UpdateBuildStatus(build.ID, buildStatus); err != nil {
 		log.Error(err)
+	}
+
+	// Signal caller that the build has completed
+	if report != nil {
+		report <- buildStatus
 	}
 }
 
