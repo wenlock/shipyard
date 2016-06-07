@@ -1,7 +1,30 @@
 {
 	"ImportPath": "github.com/shipyard/shipyard",
 	"GoVersion": "go1.5",
-	"GodepVersion": "v69",
+	"GodepVersion": "v74",
+	"Packages": [
+		"github.com/shipyard/shipyard",
+		"github.com/shipyard/shipyard/checker",
+		"github.com/shipyard/shipyard/client",
+		"github.com/shipyard/shipyard/controller",
+		"github.com/shipyard/shipyard/controller/api",
+		"github.com/shipyard/shipyard/controller/manager",
+		"github.com/shipyard/shipyard/controller/middleware/access",
+		"github.com/shipyard/shipyard/controller/middleware/audit",
+		"github.com/shipyard/shipyard/controller/middleware/auth",
+		"github.com/shipyard/shipyard/controller/mock_test",
+		"github.com/shipyard/shipyard/model",
+		"github.com/shipyard/shipyard/model/dockerhub",
+		"github.com/shipyard/shipyard/model/registry/v1",
+		"github.com/shipyard/shipyard/model/registry/v2",
+		"github.com/shipyard/shipyard/utils",
+		"github.com/shipyard/shipyard/utils/auth",
+		"github.com/shipyard/shipyard/utils/auth/builtin",
+		"github.com/shipyard/shipyard/utils/auth/ldap",
+		"github.com/shipyard/shipyard/utils/emitter",
+		"github.com/shipyard/shipyard/utils/tlsutils",
+		"github.com/shipyard/shipyard/version"
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Microsoft/go-winio",
@@ -199,6 +222,11 @@
 			"Rev": "6dfb160b2754e3b3fa583fbd0c207dfab2e836e5"
 		},
 		{
+			"ImportPath": "github.com/gopherjs/gopherjs/js",
+			"Comment": "go1.5-30-g853fd42",
+			"Rev": "853fd4283f54c8abba3d98ffb31fa626e2119f71"
+		},
+		{
 			"ImportPath": "github.com/gorilla/context",
 			"Rev": "1c83b3eabd45b6d76072b66b746c20815fb2872d"
 		},
@@ -222,6 +250,11 @@
 		{
 			"ImportPath": "github.com/hailocab/go-hostpool",
 			"Rev": "e80d13ce29ede4452c43dea11e79b9bc8a15b478"
+		},
+		{
+			"ImportPath": "github.com/jtolds/gls",
+			"Comment": "v4.2.0",
+			"Rev": "8ddce2a84170772b95dd5d576c48d517b22cac63"
 		},
 		{
 			"ImportPath": "github.com/julienschmidt/httprouter",
@@ -278,6 +311,41 @@
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
 			"Rev": "8802d66ce78e69ff16692f6fa89ad969a5711b8b"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/assertions",
+			"Comment": "1.6.0-6-g40711f7",
+			"Rev": "40711f7748186bbf9c99977cd89f21ce1a229447"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/assertions/internal/go-render/render",
+			"Comment": "1.6.0-6-g40711f7",
+			"Rev": "40711f7748186bbf9c99977cd89f21ce1a229447"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/assertions/internal/oglematchers",
+			"Comment": "1.6.0-6-g40711f7",
+			"Rev": "40711f7748186bbf9c99977cd89f21ce1a229447"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/goconvey/convey",
+			"Comment": "1.6.2-2-gc53abc9",
+			"Rev": "c53abc99456fa3402dd33c15ee51c3e545e04a3f"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/goconvey/convey/gotest",
+			"Comment": "1.6.2-2-gc53abc9",
+			"Rev": "c53abc99456fa3402dd33c15ee51c3e545e04a3f"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/goconvey/convey/reporting",
+			"Comment": "1.6.2-2-gc53abc9",
+			"Rev": "c53abc99456fa3402dd33c15ee51c3e545e04a3f"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.0-40-g7c2b1e5",
+			"Rev": "7c2b1e5640dcf2631213ca962d892bffa1e08860"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/bcrypt",
