@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
-DOCKER_HOST=$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')
+SHIPYARD_HOST=$1
+SHIPYARD_PORT=$2
+SHIPYARD_NETWORK=$3
 
-# TODO: need to evaluate this image with headless chrome in CI environment
-sudo docker run -it --privileged -e DOCKER_HOST=$DOCKER_HOST --rm --net=host -v /dev/shm:/dev/shm -v $(pwd):/protractor webnicer/protractor-headless conf.js
+sudo docker run \
+    --privileged \
+    --net=${SHIPYARD_NETWORK} \
+    -e SHIPYARD_HOST=${SHIPYARD_HOST}:${SHIPYARD_PORT} \
+    --rm \
+    -v /dev/shm:/dev/shm \
+    -v $(pwd):/protractor \
+    webnicer/protractor-headless conf.js
+result=$?
+
+exit $result

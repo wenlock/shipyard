@@ -25,21 +25,21 @@
             <div class="ui segment page">
                 <div class="ui grid">
                     <span style="float: right">
-                        <img src="app/ILM Logo_72.png" style="height:60px; width:200px"/>
+                        <img id="logo-project-inspect-view" src="app/ILM Logo_72.png" style="height:60px; width:200px"/>
                     </span>
                     <div class="column row">
                         <div class="column">
-                            <div ng-click="vm.showProjectHistory()" class="ui small blue labeled icon button">
+                            <div id="history-project-inspect-view" ng-click="vm.showProjectHistory()" class="ui small blue labeled icon button">
                                 <i class="clock icon"></i> Project History
                             </div>
                             <span ng-show="!vm.refresh" style="float: right">
-                                <a ng-click="vm.startRefresh(vm.results.projectId)" style="color: #006D95; cursor: pointer; font-weight: bold">Auto Refresh <i class="refresh icon"></i></a>
+                                <a id="auto-refresh-enabled" ng-click="vm.startRefresh(vm.results.projectId)" style="color: #006D95; cursor: pointer; font-weight: bold">Auto Refresh <i class="refresh icon"></i></a>
                             </span>
                             <span ng-show="vm.refresh" style="float: right">
-                                <a ng-click="vm.cancelRefresh()" style="color: darkgray; cursor: pointer; font-weight: bold">Auto Refresh <i class="stop icon"></i></a>
+                                <a id="auto-refresh-disabled" ng-click="vm.cancelRefresh()" style="color: darkgray; cursor: pointer; font-weight: bold">Auto Refresh <i class="stop icon"></i></a>
                             </span>
                             <h3 class="ui header">
-                                <span style="float: right">
+                                <span id="inspect-go-to-projects" style="float: right">
                                     <a ui-sref="dashboard.projects" style="color: #006D95">Go To Projects <i class="sign out icon"></i></a>
                                 </span>
                                 <div class="content">
@@ -141,26 +141,26 @@
                                             <i class="circle icon" ng-class="test.status == 'finished_success' ? 'green' : 'red'"></i>
                                             <span class="hidden">{{test.status}}</span>
                                         </td>
-                                        <td>{{test.testId | limitTo:12}}</td>
-                                        <td>{{test.buildId | limitTo:12}}</td>
-                                        <td>
+                                        <td id="inspect-view-test-id">{{test.testId | limitTo:12}}</td>
+                                        <td id="inspect-view-build-id">{{test.buildId | limitTo:12}}</td>
+                                        <td id="inspect-view-blocker">
                                             <div class="ui toggle checkbox">
                                                 <input type="checkbox" name="blocker" ng-model="test.blocker" disabled>
                                                 <label></label>
                                             </div>
                                         </td>
-                                        <td>{{test.testName}}</td>
-                                        <td>{{test.imageName}}</td>
-                                        <td>{{test.dockerImageId | limitTo:12}}</td>
-                                        <td>{{test.date}}</td>
-                                        <td>{{test.endDate}}</td>
+                                        <td id="inspect-view-test-name">{{test.testName}}</td>
+                                        <td id="inspect-view-image-name">{{test.imageName}}</td>
+                                        <td id="inspect-view-docker-image-id">{{test.dockerImageId | limitTo:12}}</td>
+                                        <td id="inspect-view-test-date">{{test.date}}</td>
+                                        <td id="inspect-view-end-date">{{test.endDate}}</td>
                                         <td><span ng-repeat="tag in test.appliedTag">
                                             <div class="ui label">
                                                 {{tag}}
                                             </div>
                                         </span></td>
                                         <td class="collapsing">
-                                            <div ui-sref="dashboard.buildResults({projectId: vm.results.projectId, testId: test.testId, buildId: test.buildId})" class="basic compact blue ui icon button"  ng-class="{disabled: test.istestResult}">
+                                            <div id="inspect-view-test-results" ui-sref="dashboard.buildResults({projectId: vm.results.projectId, testId: test.testId, buildId: test.buildId})" class="basic compact blue ui icon button"  ng-class="{disabled: test.istestResult}">
                                                 <i class="search icon"></i>
                                             </div>
                                             <div class="basic compact blue ui icon button">
