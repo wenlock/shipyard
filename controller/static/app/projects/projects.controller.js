@@ -154,8 +154,8 @@
         }
 
         function refreshOnPushNotification() {
-            // TODO: make dynamic
-            var dataStream = $websocket('ws://localhost:8082/ws/updates');
+            var l = window.location;
+            var dataStream = $websocket('ws://'+l.host+l.pathname+'ws/updates');
             dataStream.onMessage(function(message) {
                 if (message.data === "project-update") {
                     vm.refresh()
