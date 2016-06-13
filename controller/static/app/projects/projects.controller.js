@@ -27,6 +27,7 @@
         vm.clearAll = clearAll;
         vm.isProjectBuilt = isProjectBuilt;
         vm.startProject = startProject;
+        vm.startAll = startAll;
 
         vm.showDeleteProjectDialog = showDeleteProjectDialog;
         vm.destroyProject = destroyProject;
@@ -80,6 +81,19 @@
         function checkAll() {
             angular.forEach($scope.filteredProjects, function (project) {
                 vm.selected[project.id].Selected = vm.selectedAll;
+            });
+        }
+
+        function startAll() {
+            angular.forEach(vm.selected, function (s) {
+                if(s.Selected == true) {
+                    ProjectService.startProject(s.Id)
+                        .then(function(data) {
+                            console.log("ran project");
+                        }, function(data) {
+                            console.log("couldn't run project");
+                        });
+                }
             });
         }
 
@@ -149,7 +163,7 @@
                 .then(function(data) {
                     console.log("ran project");
                 }, function(data) {
-                    console.log("couldnt run project");
+                    console.log("couldn't run project");
                 });
         }
 
