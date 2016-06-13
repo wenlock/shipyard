@@ -83,6 +83,7 @@ var sy = {
     editProjectLoadingMsgCSS: '#content > div.ui.padded.grid.ng-scope > div > div > div:nth-child(1)',
     editProjectGoToProjectsButton: by.css('#content > div.ui.padded.grid.ng-scope > div > div > div.ui.segment.page > div > div.column.row > div > h3 > span > a'),
     projectListTableOfProjects: by.repeater('a in filteredProjects = (vm.projects | filter:tableFilter)'),
+    buildQueueTable: by.repeater('project in filtered = (vm.projects | filter:tableFilter) track by $index'),
     deleteProjectHeader: by.id('delete-project-header'),
     deleteProjectButton: by.id('delete-project-button'),
     inspectViewBuilds: by.repeater('test in vm.results.testResults'),
@@ -91,13 +92,9 @@ var sy = {
     inspectProjectGoToProjectsButton: by.id('inspect-go-to-projects')
 };
 
-// TODO: Let's try to comment each step. Even with descriptive names, it's kind of hard to follow
-// TODO: missing case for removing projects/images/tests
-
 describe('ILM', function() {
     it('should have a title', function() {
         console.log("check title");
-        // TODO: this port might change in the future or could be random in CI environment
         browser.get('http://'+process.env.SHIPYARD_HOST);
         expect(browser.getTitle()).toEqual('shipyard');
     });
@@ -429,22 +426,6 @@ describe('ILM', function() {
         );
     });
 
-    /*it('should be able to check tests results', function() {
-     console.log("check test results");
-     browser.wait(protractor.ExpectedConditions.visibilityOf(element(sy.inspectViewBuilds.row(0)), 60000));
-     var inspectButton = element(sy.inspectViewBuilds.row(0));
-     browser.wait(protractor.ExpectedConditions.visibilityOf(inspectButton.element(by.css('i[class="search icon"]'))), 60000);
-     inspectButton.element(by.css('i[class="search icon"]')).click();
-     /!*browser.wait(protractor.ExpectedConditions.visibilityOf(element.all(sy.inspectViewBuilds).get(-1), 60000));
-     var lastBuild = element.all(sy.inspectViewBuilds).get(-1);
-     expect(lastBuild.element(sy.inspectViewMagnifyingGlass).getAttribute('class')).toBe('basic compact blue ui icon button');
-     element.all(sy.inspectViewBuilds).get(-1)
-     .element(sy.inspectViewMagnifyingGlass).click();
-     var testResultsHeader = element(by.css('.ui.header .content'));
-     browser.wait(protractor.ExpectedConditions.visibilityOf(testResultsHeader, 60000));
-     expect(testResultsHeader.getText()).toEqual('Clair report for image ' + config.imageName + ":" + config.tag);*!/
-     });*/
-
     it('should be able to go to edit view', function() {
         console.log("skip to edit project view");
         browser.wait(protractor.ExpectedConditions.visibilityOf(element(by.id('edit-project')), 60000));
@@ -472,6 +453,19 @@ describe('ILM', function() {
         var projectName = element.all(sy.projectListTableOfProjects).get(-1)
             .element(by.css('#project-name'));
         browser.wait(protractor.ExpectedConditions.visibilityOf(projectName, 60000));
+    });
+
+    it('should be able to execute test from project level', function() {
+        console.log("execute test from project level");
+        browser.wait(protractor.ExpectedConditions.visibilityOf(element(sy.projectListTableOfProjects.row(0)), 60000));
+        var buildProject = element(sy.projectListTableOfProjects.row(0));
+        buildProject.element(by.className('wrench icon')).click();
+        browser.wait(protractor.ExpectedConditions.visibilityOf(buildProject.element(by.css('i[class="black play icon"]'))), 60000);
+        buildProject.element(by.css('i[class="black play icon"]')).click();
+        browser.wait(protractor.ExpectedConditions.visibilityOf(element(sy.buildQueueTable.row(0)), 60000));
+        var buildDetails = element(sy.buildQueueTable.row(0));
+        var build = buildDetails.all(by.tagName('td'));
+        expect(build.get(2).getText()).toEqual('new');
     });
 
     it('should be able to get to edit project view clicking on the Edit action item from the project list view', function() {
