@@ -224,6 +224,16 @@
                     $scope.$apply();
                 }
             });
+        $(".ui.selection.fluid.dropdown.location")
+            .dropdown({
+                onChange: function(value, text, $selectedItem) {
+                    vm.createImage.location = value;
+
+                    vm.resetValues();
+
+                    $scope.$apply();
+                }
+            });
         $(".ui.selection.fluid.dropdown.edit.tag")
             .dropdown({
                 onChange: function(value, text, $selectedItem) {

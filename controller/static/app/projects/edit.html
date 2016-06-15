@@ -1,7 +1,7 @@
 <div id="edit-project-delete-image-modal" class="ui small modal transition">
     <i class="close icon"></i>
-    <div class="header">
-        Delete Image: {{ vm.selectedImage.id | limitTo:12 }}
+    <div id="delete-image-header" class="header">
+        Delete Image: {{ vm.selectedImage.name | limitTo:12 }}
     </div>
     <div class="content">
         <p>Are you sure you want to delete this image?</p>
@@ -10,7 +10,7 @@
         <div class="ui negative button">
             No
         </div>
-        <div ng-click="vm.deleteImage(vm.selectedImage)" class="ui positive right labeled icon button">
+        <div id="delete-image-button" ng-click="vm.deleteImage(vm.selectedImage)" class="ui positive right labeled icon button">
             Yes
             <i class="checkmark icon"></i>
         </div>
@@ -19,7 +19,7 @@
 
 <div id="edit-project-delete-test-modal" class="ui small modal transition">
     <i class="close icon"></i>
-    <div class="header">
+    <div id="delete-test-header" class="header">
         Delete Test: {{ vm.selectedTest.name | limitTo:12 }}
     </div>
     <div class="content">
@@ -29,7 +29,7 @@
         <div class="ui negative button">
             No
         </div>
-        <div ng-click="vm.deleteTest(vm.selectedTest)" class="ui positive right labeled icon button">
+        <div id="delete-test-button" ng-click="vm.deleteTest(vm.selectedTest)" class="ui positive right labeled icon button">
             Yes
             <i class="checkmark icon"></i>
         </div>
@@ -68,12 +68,15 @@
                                 <div class="fields">
                                     <div class="four wide field">
                                         <label>Location</label>
-                                        <select id="imageLocation" name="location" ng-model="vm.createImage.location" class="ui search fluid dropdown" ng-change="vm.resetValues()">
-                                            <option value="">Choose Location</option>
-                                            <option value="Shipyard Registry" ng-click="console.log('clicked')">Shipyard Registry</option>
-                                            <option value="Public Registry">Public Registry</option>
-                                            <!--<option value="File">File</option>-->
-                                        </select>
+                                        <div id="create-image-location" class="ui selection fluid dropdown location">
+                                            <input type="hidden" name="location">
+                                            <i class="dropdown icon"></i>
+                                            <div class="default text">Choose Location</div>
+                                            <div class="menu">
+                                                <div class="item" data-value="Shipyard Registry">Shipyard Registry</div>
+                                                <div id="create-image-location-public-reg" class="item" data-value="Public Registry">Public Registry</div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div ng-show="!vm.createImage.location" class="field">
@@ -109,7 +112,7 @@
                                         <label>Image Name </label>
                                         <div class="ui search">
                                             <div class="ui icon input">
-                                                <input class="prompt" type="text" placeholder="Name" />
+                                                <input id="create-image-name-search" class="prompt" type="text" placeholder="Name" />
                                                 <i class="search icon"></i>
                                             </div>
                                             <div class="results"></div>
@@ -117,13 +120,13 @@
                                     </div>
                                     <div ng-show="vm.createImage.location === 'Public Registry'" class="four wide field">
                                         <label>Tag</label>
-                                        <div id="createImageTag" class="ui selection fluid dropdown tag create">
+                                        <div id="create-image-tag" class="ui selection fluid dropdown tag create">
                                             <input type="hidden" name="tag">
                                             <i ng-if="!vm.createImageTagSpin" class="dropdown icon"></i>
                                             <i ng-if="vm.createImageTagSpin" class="repeat icon spin" aria-hidden="true" style="float: right; position: relative; width: auto; font-size: 0.85714286; margin: 0em 0em 0em 1em;"></i>
                                             <div class="default text">Tag</div>
                                             <div class="menu">
-                                                <div ng-repeat="a in vm.publicRegistryTags"
+                                                <div ng-repeat="a in vm.publicRegistryTags" id="tag-results"
                                                      class="item" data-value="{{a.name}}">{{a.name}}</div>
                                             </div>
                                         </div>
@@ -205,7 +208,7 @@
         <div ng-click="vm.cancelCreateSaveImage()" class="ui negative button create image">
             Cancel
         </div>
-        <div ng-click="vm.createSaveImage(vm.createImage)" class="ui positive right labeled icon button {{vm.buttonStyle}}">
+        <div ng-click="vm.createSaveImage(vm.createImage)" class="ui positive right labeled icon button {{vm.buttonStyle}}" id="create-image-save">
             Save Image
             <i class="save icon"></i>
         </div>
@@ -214,7 +217,7 @@
 
 <div id="edit-project-image-edit-modal-{{vm.randomEditId}}" class="ui fullscreen modal transition edit image">
     <i class="close icon"></i>
-    <div class="header">
+    <div class="header" id="edit-image-header">
         {{ vm.editImage.name }}
     </div>
     <div class="content">
@@ -284,7 +287,7 @@
                                             <div class="results"></div>
                                         </div>
                                     </div>
-                                    <div ng-show="vm.editImage.location === 'Public Registry'" class="four wide field">
+                                    <div id="edit-image-tag" ng-show="vm.editImage.location === 'Public Registry'" class="four wide field">
                                         <label>Tag</label>
                                         <div class="ui fluid search selection dropdown edit tag">
                                             <input type="hidden" name="tag">
@@ -292,7 +295,7 @@
                                             <i ng-if="vm.editImageTagSpin" class="repeat icon spin" aria-hidden="true" style="float: right; position: relative; width: auto; font-size: 0.85714286; margin: 0em 0em 0em 1em;"></i>
                                             <div id="editImageTagDefault" class="default text"></div>
                                             <div class="menu">
-                                                <div ng-repeat="a in vm.publicRegistryTags"
+                                                <div id="edit-image-tag-results" ng-repeat="a in vm.publicRegistryTags"
                                                      class="item" data-value="{{a.name}}">{{a.name}}</div>
                                             </div>
                                         </div>
@@ -374,7 +377,7 @@
         <div ng-click="vm.cancelEditSaveImage()" class="ui negative button">
             Cancel
         </div>
-        <div  ng-click="vm.editSaveImage()" class="ui positive right labeled icon button {{vm.buttonStyle}}">
+        <div id="edit-image-apply"  ng-click="vm.editSaveImage()" class="ui positive right labeled icon button {{vm.buttonStyle}}">
             Apply Changes
             <i class="save icon"></i>
         </div>
@@ -384,7 +387,7 @@
 
 <div id="edit-project-test-create-modal-{{vm.randomCreateTestId}}" class="ui fullscreen modal transition create test">
     <i class="close icon"></i>
-    <div class="header">
+    <div class="header" id="create-test-header">
         Add Test
     </div>
     <div class="content">
@@ -434,7 +437,7 @@
                                     </div>
 
                                     <div class="eleven wide field" ng-show="vm.createTest.provider.providerType === 'Clair [Internal]'">
-                                        <label>Select Images to Test</label>
+                                        <label id="create-test-selectize-label">Select Images to Test</label>
                                         <selectize config='vm.createTest.selectizeConfig' options='vm.createTest.selectizeItems' ng-model="vm.createTest.selectizeData" ng-change="vm.setTargetsCreateTest(vm.createTest.selectizeData)"></selectize>
                                     </div>
 
@@ -463,7 +466,7 @@
 
                                     <div class="field">
                                         <label>Display Name</label>
-                                        <input name="tag" class="input" type="text" ng-model="vm.createTest.name" placeholder="Add Name" />
+                                        <input id="create-test-display-name" name="tag" class="input" type="text" ng-model="vm.createTest.name" placeholder="Add Name" />
                                     </div>
 
                                     <div class="field">
@@ -525,7 +528,7 @@
 
                                 <div class="fields" ng-repeat="parameter in vm.createTest.parameters">
                                     <div class="seven wide field">
-                                        <input class="input" type="text" ng-model="parameter.paramName"></input>
+                                        <input class="input" type="text" ng-model="parameter.paramName">
                                     </div>
                                     <div class="eight wide field">
                                         <selectize ng-model="parameter.paramValue"></selectize>
@@ -548,7 +551,7 @@
         <div class="ui negative button">
             Cancel
         </div>
-        <div ng-click="vm.createSaveTest(vm.createTest)" class="ui positive right labeled icon button">
+        <div id="test-create-save-button" ng-click="vm.createSaveTest(vm.createTest)" class="ui positive right labeled icon button">
             Save Test
             <i class="save icon"></i>
         </div>
@@ -557,7 +560,7 @@
 
 <div id="edit-project-test-edit-modal-{{vm.randomEditTestId}}" class="ui fullscreen modal transition edit test">
     <i class="close icon"></i>
-    <div class="header">
+    <div id="edit-test-header" class="header">
         {{vm.editTest.name}}
     </div>
     <div class="content">
@@ -696,7 +699,7 @@
 
                                 <div class="fields" ng-repeat="parameter in vm.editTest.parameters">
                                     <div class="seven wide field">
-                                        <input class="input" type="text" ng-model="parameter.paramName"></input>
+                                        <input class="input" type="text" ng-model="parameter.paramName">
                                     </div>
                                     <div class="eight wide field">
                                         <selectize ng-model="parameter.paramValue"></selectize>
@@ -719,7 +722,7 @@
         <div class="ui negative button">
             Cancel
         </div>
-        <div ng-click="vm.editSaveTest(vm.editTest)" class="ui positive right labeled icon button {{vm.buttonStyle}}">
+        <div id="edit-test-apply" ng-click="vm.editSaveTest(vm.editTest)" class="ui positive right labeled icon button {{vm.buttonStyle}}">
             Apply Changes
             <i class="save icon"></i>
         </div>
@@ -762,7 +765,7 @@
             <div class="ui segment page">
                 <div class="ui grid">
                     <span style="float: right">
-                        <img src="app/ILM Logo_72.png" style="height:60px; width:200px"/>
+                        <img id="logo-project-edit-view" src="app/ILM Logo_72.png" style="height:60px; width:200px"/>
                     </span>
                     <div class="column row">
                         <div class="column">
@@ -809,11 +812,11 @@
                                     <div class="four fields">
                                         <div class="field">
                                             <label>Project Name</label>
-                                            <input name="command" class="input" type="text" ng-model="vm.project.name" ng-change="vm.enableSaveProject()" placeholder="Name..."></input>
+                                            <input name="command" class="input" type="text" ng-model="vm.project.name" ng-change="vm.enableSaveProject()" placeholder="Name...">
                                         </div>
                                         <div class="field">
                                             <label>Project Description</label>
-                                            <input name="command" class="input" type="text" ng-model="vm.project.description" ng-change="vm.enableSaveProject()" placeholder="Description..."></input>
+                                            <input name="command" class="input" type="text" ng-model="vm.project.description" ng-change="vm.enableSaveProject()" placeholder="Description...">
                                         </div>
                                         <div class="field">
                                             <label>Status</label>
@@ -855,14 +858,14 @@
                                 <h4 class="ui header">Images Details &nbsp &nbsp &nbsp
                                     <div class="field" style="display: inline-block">
                                         <div class="item">
-                                            <div class="ui toggle checkbox" ng-click="vm.skipImages=!vm.skipImages">
+                                            <div id="image-verification-slider" class="ui toggle checkbox" ng-click="vm.skipImages=!vm.skipImages">
                                                 <input type="checkbox" name="public" ng-model="vm.skipImages">
                                                 <label style="font-weight: lighter">Disable image verification</label>
                                             </div>
-                                            <i class="blue help circle icon"></i>
+                                            <i id="help-circle-image-verification" class="blue help circle icon"></i>
                                             <div class="ui popup" style="max-width: 450px;">
-                                                <p ng-if="!vm.skipImages">Click the slider to disable image verification.</p>
-                                                <p ng-if="vm.skipImages">Click the slider to enable image verification.</p>
+                                                <p id="image-verification-disable-tooltip" ng-if="!vm.skipImages">Click the slider to disable image verification.</p>
+                                                <p id="image-verification-enable-tooltip" ng-if="vm.skipImages">Click the slider to enable image verification.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -924,14 +927,14 @@
                                 <h4 class="ui header">Tests Details &nbsp &nbsp &nbsp
                                     <div class="field" style="display: inline-block">
                                         <div class="item">
-                                            <div class="ui toggle checkbox" ng-click="vm.skipTests=!vm.skipTests">
+                                            <div id="test-verification-slider" class="ui toggle checkbox" ng-click="vm.skipTests=!vm.skipTests">
                                                 <input type="checkbox" name="public" ng-model="vm.skipTests">
                                                 <label style="font-weight: lighter">Disable test verification</label>
                                             </div>
-                                            <i class="blue help circle icon"></i>
+                                            <i id="help-circle-test-verification" class="blue help circle icon"></i>
                                             <div class="ui popup" style="max-width: 450px;">
-                                                <p ng-if="!vm.skipTests">Click the slider to disable test verification.</p>
-                                                <p ng-if="vm.skipTests">Click the slider to enable test verification.</p>
+                                                <p id="test-verification-disable-tooltip" ng-if="!vm.skipTests">Click the slider to disable test verification.</p>
+                                                <p id="test-verification-enable-tooltip" ng-if="vm.skipTests">Click the slider to enable test verification.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -940,7 +943,7 @@
                                     <div class="item">
                                         <div class="row">
                                             <div class="left column">
-                                                <div ng-click="vm.showTestCreateDialog()" class="ui small green labeled icon button">
+                                                <div ng-click="vm.showTestCreateDialog()" class="ui small green labeled icon button" id="create-new-test-button">
                                                     <i class="plus icon"></i>Add Test
                                                 </div>
                                             </div>

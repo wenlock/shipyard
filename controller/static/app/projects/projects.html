@@ -1,6 +1,6 @@
 <div id="delete-project-modal-{{vm.selectedProjectId}}" class="ui small modal transition">
     <i class="close icon"></i>
-    <div class="header">
+    <div id="delete-project-header" class="header">
         Delete Project: {{ vm.selectedProjectId | limitTo:12 }}
     </div>
     <div class="content">
@@ -10,7 +10,7 @@
         <div class="ui negative button">
             No
         </div>
-        <div ng-click="vm.destroyProject(vm.selectedProjectId)" class="ui positive right labeled icon button">
+        <div id="delete-project-button" ng-click="vm.destroyProject(vm.selectedProjectId)" class="ui positive right labeled icon button">
             Yes
             <i class="checkmark icon"></i>
         </div>
@@ -21,7 +21,7 @@
     <div class="two column row">
         <div class="left floated column">
             <div ng-click="vm.refresh()" class="ui small blue labeled icon button">
-                <i class="refresh icon"></i> Refresh
+                <i id="refresh-project-button" class="refresh icon"></i> Refresh
             </div>
             <div ui-sref="dashboard.create_project" class="ui small green labeled icon button">
                 <i id="create-new-project-button" class="plus icon"></i> Create New Project
@@ -31,13 +31,13 @@
             <div class="ui small icon input">
                 <input ng-model="tableFilter" placeholder="Search projects..." reset-field/>
             </div>
-            <div class="ui small icon input" style="vertical-align: middle;">
+            <div id="logo-project-view" class="ui small icon input" style="vertical-align: middle;">
                 <img src="app/ILM Logo_72.png" style="height:40px; width:150px;"/>
             </div>
         </div>
     </div>
 
-    <div class="row" ng-show="vm.projects.length === 0">
+    <div id="empty-project-list-message" class="row" ng-show="vm.projects.length === 0">
         <div class="column">
             <div class="ui icon message">
                 <i class="info icon"></i>
@@ -61,12 +61,12 @@
                 </th>
                 </tr></thead>
                 <tbody>
-                <tr ng-repeat="a in filteredProjects = (vm.projects | filter:tableFilter) track by $index">
+                <tr ng-repeat="project in filtered = (vm.projects | filter:tableFilter) track by $index">
                     <td class="collapsing">
                         {{$index+1}}
                     </td>
-                    <td>{{a.name}}</td>
-                    <td class="right aligned collapsing">{{a.actionStatus}}</td>
+                    <td>{{project.name}}</td>
+                    <td class="right aligned collapsing">{{project.actionStatus}}</td>
                 </tr>
                 </tbody>
             </table>
@@ -102,7 +102,7 @@
                         <span class="hidden">{{a.status}}</span>
                     </td>
                     <td class="collapsing">{{a.id | limitTo:12}}</td>
-                    <td>{{a.name}}</td>
+                    <td id="project-name">{{a.name}}</td>
                     <td>{{a.lastRun}}</td>
                     <td class="collapsing">
                         <div ui-sref="dashboard.inspect_project({id: a.id, projectName: a.name})" class="basic compact blue ui icon button"
