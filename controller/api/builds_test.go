@@ -50,14 +50,21 @@ var (
 		ProviderId:       "providerId2",
 	}
 	BUILD3_CONFIG = &model.BuildConfig{}
-	BUILD1_STATUS = &model.BuildStatus{
+	BUILD_STATUS_NEW = &model.BuildStatus{
+		BuildId: "",
+		Status:  "new",
+	}
+	BUILD_STATUS_RUNNING = &model.BuildStatus{
 		BuildId: "",
 		Status:  "running",
 	}
-	BUILD2_STATUS = &model.BuildStatus{
+	BUILD_STATUS_FINISHED_SUCCESS = &model.BuildStatus{
 		BuildId: "",
-		Status:  "running"}
-	BUILD3_STATUS  = &model.BuildStatus{}
+		Status:  "finished_success"}
+	BUILD_STATUS_FINISHED_FAILURE  = &model.BuildStatus{
+		BuildId: "",
+		Status:  "finished_failed",
+	}
 	BUILD1_RESULTS = []*model.BuildResult{
 		&model.BuildResult{
 			BuildId: "buildId",
@@ -240,7 +247,7 @@ var (
  		So(SY_AUTHTOKEN, ShouldNotBeNil)
  		So(SY_AUTHTOKEN, ShouldNotBeEmpty)
  		Convey("When we make a request to create a new build", func() {
- 			id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, BUILD1_CONFIG, BUILD1_STATUS, BUILD1_RESULTS, TEST_ID, PROJECT_ID, nil)
+ 			id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, BUILD1_CONFIG, BUILD_STATUS_NEW, BUILD1_RESULTS, TEST_ID, PROJECT_ID, nil)
  			Convey("Then we get back a successful response", func() {
  				So(id, ShouldNotBeEmpty)
  				So(code, ShouldEqual, http.StatusCreated)
@@ -263,11 +270,35 @@ var (
  			Convey("Then the server should return OK", func() {
  				So(code, ShouldNotBeNil)
  				So(err, ShouldBeNil)
- 				Convey("Then the returned build should have the expected values", func() {
+ 				Convey("Then the returned build should have an expected status of 'running'", func() {
  					So(build.ID, ShouldEqual, BUILD1_SAVED_ID)
  					So(build.ProjectId, ShouldEqual, PROJECT_ID)
  					So(build.TestId, ShouldEqual, TEST_ID)
- 					So(build.Status, ShouldResemble, BUILD1_STATUS)
+ 					So(build.Status, ShouldResemble, BUILD_STATUS_RUNNING)
+ 				})
+ 			})
+
+ 		})
+
+		Convey("When we wait for it to finish building", func() {
+			build, code, err := apiClient.GetBuild(SY_AUTHTOKEN, ts.URL, PROJECT_ID, TEST_ID, BUILD1_SAVED_ID)
+			for {
+				time.Sleep(time.Second * 5)
+				build, code, err = apiClient.GetBuild(SY_AUTHTOKEN, ts.URL, PROJECT_ID, TEST_ID, BUILD1_SAVED_ID)
+				So(code, ShouldNotBeNil)
+				So(err, ShouldBeNil)
+				if build.Status.Status != BUILD_STATUS_RUNNING.Status {
+					break
+				}
+			}
+ 			Convey("Then the server should return OK", func() {
+ 				So(code, ShouldNotBeNil)
+ 				So(err, ShouldBeNil)
+ 				Convey("Then the returned build should have an expected status of 'running'", func() {
+ 					So(build.ID, ShouldEqual, BUILD1_SAVED_ID)
+ 					So(build.ProjectId, ShouldEqual, PROJECT_ID)
+ 					So(build.TestId, ShouldEqual, TEST_ID)
+ 					So(build.Status, ShouldResemble, BUILD_STATUS_FINISHED_FAILURE)
  				})
  			})
 
@@ -279,7 +310,7 @@ var (
  	Convey("Given that we have created an additional build", t, func() {
  		So(SY_AUTHTOKEN, ShouldNotBeNil)
  		So(SY_AUTHTOKEN, ShouldNotBeEmpty)
- 		id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, BUILD2_CONFIG, BUILD2_STATUS, BUILD2_RESULTS, TEST_ID, PROJECT_ID, nil)
+ 		id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, BUILD2_CONFIG, BUILD_STATUS_NEW, BUILD2_RESULTS, TEST_ID, PROJECT_ID, nil)
 
  		BUILD2_SAVED_ID = id
 
@@ -301,13 +332,13 @@ var (
  						if build.ID == BUILD1_SAVED_ID {
  							So(build.ProjectId, ShouldEqual, PROJECT_ID)
  							So(build.TestId, ShouldEqual, TEST_ID)
- 							So(build.Status, ShouldResemble, BUILD1_STATUS)
+ 							So(build.Status, ShouldResemble, BUILD_STATUS_FINISHED_FAILURE)
  							found_build1 = true
  						}
  						if build.ID == BUILD2_SAVED_ID {
  							So(build.ProjectId, ShouldEqual, PROJECT_ID)
  							So(build.TestId, ShouldEqual, TEST_ID)
- 							So(build.Status, ShouldResemble, BUILD2_STATUS)
+ 							So(build.Status, ShouldResemble, BUILD_STATUS_RUNNING)
  							found_build2 = true
  						}
  					}
@@ -325,7 +356,7 @@ var (
  func TestUpdateBuild(t *testing.T) {
  	Convey("Given that we have a build created already.", t, func() {
  		Convey("When we request to update that build.", func() {
- 			err := apiClient.UpdateBuild(SY_AUTHTOKEN, ts.URL, PROJECT_ID, TEST_ID, BUILD2_SAVED_ID, BUILD2_CONFIG, BUILD2_STATUS, BUILD2_RESULTS, nil)
+ 			err := apiClient.UpdateBuild(SY_AUTHTOKEN, ts.URL, PROJECT_ID, TEST_ID, BUILD2_SAVED_ID, BUILD2_CONFIG, BUILD_STATUS_RUNNING, BUILD2_RESULTS, nil)
 
  			Convey("Then we get an appropriate response back", func() {
  				So(err, ShouldBeNil)
