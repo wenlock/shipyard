@@ -50,14 +50,14 @@ clair:
   updater:
     # Frequency the database will be updated with vulnerabilities from the default data sources
     # The value 0 disables the updater entirely.
-    interval: 2h
+    interval: 120h
 
   notifier:
     # Number of attempts before the notification is marked as failed to be sent
     attempts: 3
 
     # Duration before a failed notification is retried
-    renotifyInterval: 2h
+    renotifyInterval: 120h
 
     http:
       # Optional endpoint that will receive notifications via POST requests
