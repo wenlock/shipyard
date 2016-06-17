@@ -18,6 +18,21 @@
 </div>
 
 <div class="ui padded grid">
+    <!--Build project info Bar-->
+    <div ng-show="vm.buildingState === true" class="row">
+        <div class="column">
+            <div class="ui icon message">
+                <i class="info icon"></i>
+                <div class="content">
+                    <div class="header">
+                        Project can not be build
+                    </div>
+                    <p>There are 3 other projects building.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="two column row">
         <div class="left floated column">
             <div ng-click="vm.refresh()" class="ui small blue labeled icon button">
