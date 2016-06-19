@@ -43,6 +43,8 @@ fi
 #******************************************************************************
 # prepare the .env file and prepare the docker build proxy settings
 function SET_ILM_PROXY_SETTING() {
+    touch .env # create the file if missing
+
     if [ ! -z "$WITH_PROXY" ]; then
         if [ ! -z "$http_proxy" ]; then
           echo "http_proxy=$http_proxy" > .env
@@ -214,20 +216,21 @@ case "$1" in
         CREATE_IMAGE
         ;;
     deploy)
-        DEPLOY_TEARDOWN
         SET_ILM_PROXY_SETTING
+        DEPLOY_TEARDOWN
         UPDATE_COMPOSE_FILE
         DEPLOY_COMPOSE
         ;;
     all)
-        DEPLOY_TEARDOWN
         SET_ILM_PROXY_SETTING
+        DEPLOY_TEARDOWN
         ILM_BUILD
         CREATE_IMAGE
         UPDATE_COMPOSE_FILE
         DEPLOY_COMPOSE
         ;;
     down)
+        SET_ILM_PROXY_SETTING
         DEPLOY_TEARDOWN
         ;;
     revert)

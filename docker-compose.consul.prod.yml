@@ -19,7 +19,7 @@ services:
       - "5432:5432"
 
   clair:
-    image: quay.io/coreos/clair:v1.1.0
+    image: quay.io/eedevops/clair:alpine_support
     volumes:
       - ./clair_config:/config:ro
       - /DATA/ilm/clair-data:/tmp
@@ -33,7 +33,7 @@ services:
 
   rethinkdb:
     restart: always
-    image: rethinkdb:2.2
+    image: rethinkdb:2.3
     volumes:
       - /DATA/ilm/rethinkdb-data:/data
     ports:
@@ -104,11 +104,9 @@ services:
 
   controller:
     restart: always
-    build:
-      context: . 
-      dockerfile: Dockerfile.build
+    image: ilmhpe/ilm
     entrypoint: /bin/bash
-    command: -c "make all && ./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:3375"
+    command: -c "./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
     volumes:
       - .:/go/src/github.com/shipyard/shipyard
     volumes_from:
