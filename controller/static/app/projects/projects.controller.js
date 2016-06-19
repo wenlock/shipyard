@@ -21,6 +21,7 @@
         vm.selectedAll = false;
         vm.selectedProject = null;
         vm.selectedProjectId = "";
+        vm.buildingState = false;
 
         vm.refresh = refresh;
         vm.checkAll = checkAll;
@@ -119,6 +120,7 @@
             vm.selected = {};
             vm.selectedItemCount = 0;
             vm.selectedAll = false;
+            vm.buildingState = false;
         }
 
         function waitAndApply(fn) {
@@ -159,12 +161,23 @@
 
         function startProject(id) {
             console.log("running project" + id);
-            return ProjectService.startProject(id)
-                .then(function(data) {
-                    console.log("ran project");
-                }, function(data) {
-                    console.log("couldn't run project");
-                });
+            vm.BuildingProjects = 0;
+            angular.forEach(vm.projects, function (project) {
+                if(project.actionStatus === "in_progress") {
+                    vm.BuildingProjects++;
+                }
+            });
+            if(vm.BuildingProjects<3) {
+                vm.buildingState = false;
+                return ProjectService.startProject(id)
+                    .then(function(data) {
+                        console.log("ran project");
+                    }, function(data) {
+                        console.log("couldn't run project");
+                    });
+            } else {
+                vm.buildingState = true;
+            }
         }
 
         function refreshOnPushNotification() {
