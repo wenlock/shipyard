@@ -31,13 +31,9 @@ services:
   controller:
     env_file: .env
     restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile.build
+    image: ilmhpe/ilm
     entrypoint: /bin/bash
-    command: -c "make all && ./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
-    volumes:
-      - .:/go/src/github.com/shipyard/shipyard
+    command: -c "./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
     volumes_from:
       - proxy
     ports:
