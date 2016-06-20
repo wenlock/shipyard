@@ -243,20 +243,20 @@ var (
  }
 
  func TestCreateNewBuild(t *testing.T) {
- 	Convey("Given that we have a valid token", t, func() {
- 		So(SY_AUTHTOKEN, ShouldNotBeNil)
- 		So(SY_AUTHTOKEN, ShouldNotBeEmpty)
- 		Convey("When we make a request to create a new build", func() {
- 			id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, BUILD1_CONFIG, BUILD_STATUS_NEW, BUILD1_RESULTS, TEST_ID, PROJECT_ID, nil)
- 			Convey("Then we get back a successful response", func() {
- 				So(id, ShouldNotBeEmpty)
- 				So(code, ShouldEqual, http.StatusCreated)
- 				So(err, ShouldBeNil)
+	Convey("Given that we have a valid token", t, func() {
+		So(SY_AUTHTOKEN, ShouldNotBeNil)
+		So(SY_AUTHTOKEN, ShouldNotBeEmpty)
+		Convey("When we make a request to create a new build", func() {
+			id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, BUILD1_CONFIG, BUILD_STATUS_NEW, BUILD1_RESULTS, TEST_ID, PROJECT_ID, nil)
+			Convey("Then we get back a successful response", func() {
+				So(id, ShouldNotBeEmpty)
+				So(code, ShouldEqual, http.StatusCreated)
+				So(err, ShouldBeNil)
 
- 				BUILD1_SAVED_ID = id
- 			})
- 		})
- 	})
+				BUILD1_SAVED_ID = id
+			})
+		})
+	})
  }
 
  func TestGetBuild(t *testing.T) {
@@ -294,7 +294,7 @@ var (
  			Convey("Then the server should return OK", func() {
  				So(code, ShouldNotBeNil)
  				So(err, ShouldBeNil)
- 				Convey("Then the returned build should have an expected status of 'running'", func() {
+ 				Convey("Then the returned build should have an expected status of 'finished'", func() {
  					So(build.ID, ShouldEqual, BUILD1_SAVED_ID)
  					So(build.ProjectId, ShouldEqual, PROJECT_ID)
  					So(build.TestId, ShouldEqual, TEST_ID)
@@ -475,6 +475,107 @@ var (
  			So(code, ShouldEqual, http.StatusNoContent)
  		})
  	})
+ }
+
+
+ func TestMultiImageBuild(t *testing.T) {
+	 build_config := &model.BuildConfig{
+		 Name:        "Name2",
+		 Description: "description2",
+		 Targets: []*model.TargetArtifact{
+			 &model.TargetArtifact{
+				 ID:           "id2",
+				 ArtifactType: "image2",
+			 },
+		 },
+		 SelectedTestType: "selectedTestType2",
+		 ProviderId:       "providerId2",
+	 }
+
+	 project_images := []*model.Image{
+		 &model.Image{
+			 ID:   "imageId11",
+			 Name: "busybox",
+			 Tag:  "latest",
+		 },
+		 &model.Image{
+			 ID:   "imageId12",
+			 Name: "alpine",
+			 Tag:  "latest",
+		 },
+	 }
+
+	 var projectId string
+	 var testId string
+
+	 Convey("When we make a request to create a new project", t, func() {
+		 id, code, err := apiClient.CreateProject(SY_AUTHTOKEN, ts.URL, "Multi Image", "Description", "good status", project_images, nil, false)
+		 Convey("Then we get back a successful response", func() {
+			 So(id, ShouldNotBeEmpty)
+			 So(err, ShouldBeNil)
+			 So(code, ShouldEqual, http.StatusCreated)
+			 projectId = id
+		 })
+	 })
+	 Convey("When we make a request to create a new test", t, func() {
+
+		 id, code, err := apiClient.CreateTest(SY_AUTHTOKEN, ts.URL, TEST1_NAME, TEST1_DESC, TEST_ARTIFACTS, TEST1_TYPE, "provider type", "provider name", "provider test", projectId, []*model.Parameter{}, "success tag", "fail tag", "from tag")
+
+		 Convey("Then we get back a successful response", func() {
+			 So(err, ShouldBeNil)
+			 So(code, ShouldEqual, http.StatusCreated)
+			 So(id, ShouldNotBeEmpty)
+			 testId = id
+		 })
+	 })
+
+	Convey("Given that we have a valid token", t, func() {
+		So(SY_AUTHTOKEN, ShouldNotBeNil)
+		So(SY_AUTHTOKEN, ShouldNotBeEmpty)
+		Convey("When we make a request to create a new build", func() {
+			id, code, err := apiClient.CreateBuild(SY_AUTHTOKEN, ts.URL, build_config, BUILD_STATUS_NEW, BUILD1_RESULTS, testId, projectId, nil)
+			Convey("Then we get back a successful response", func() {
+				So(id, ShouldNotBeEmpty)
+				So(code, ShouldEqual, http.StatusCreated)
+				So(err, ShouldBeNil)
+
+				BUILD1_SAVED_ID = id
+			})
+		})
+	})
+
+	 Convey("When we wait for it to finish building", t, func() {
+		 build, code, err := apiClient.GetBuild(SY_AUTHTOKEN, ts.URL, projectId, testId, BUILD1_SAVED_ID)
+		 for {
+			 time.Sleep(time.Second * 5)
+			 build, code, err = apiClient.GetBuild(SY_AUTHTOKEN, ts.URL, projectId, testId, BUILD1_SAVED_ID)
+			 So(code, ShouldNotBeNil)
+			 So(err, ShouldBeNil)
+			 if build.Status.Status != BUILD_STATUS_RUNNING.Status {
+				 break
+			 }
+		 }
+		 Convey("Then the server should return OK", func() {
+			 So(code, ShouldNotBeNil)
+			 So(err, ShouldBeNil)
+			 Convey("Then the returned build should have an expected status of 'finished'", func() {
+				 So(build.ID, ShouldEqual, BUILD1_SAVED_ID)
+				 So(build.ProjectId, ShouldEqual, projectId)
+				 So(build.TestId, ShouldEqual, testId)
+				 So(build.Status, ShouldResemble, BUILD_STATUS_FINISHED_SUCCESS)
+			 })
+		 })
+
+	 })
+
+	 Convey("When we request to delete the project created for the build testing", t, func() {
+		 //delete the project created for build testing
+		 code, err := apiClient.DeleteProject(SY_AUTHTOKEN, ts.URL, projectId)
+		 Convey("Then we get confirmation that it was deleted.", func() {
+			 So(err, ShouldBeNil)
+			 So(code, ShouldEqual, http.StatusNoContent)
+		 })
+	 })
  }
 
  // This is a hack to ensure teardown / cleanup after this test suite ends.
