@@ -6,8 +6,11 @@ import (
 
 const (
 	BuildStartActionLabel = "start"
-
 	BuildStatusNewLabel = "new"
+	BuildStatusInProgress = "in_progress"
+	BuildStatusStopped = "stopped"
+	BuildStatusFinishedSuccess = "finished_success"
+	BuildStatusFinishedFailed = "finished_failed"
 )
 
 type Build struct {

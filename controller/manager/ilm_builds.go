@@ -87,6 +87,7 @@ func (m DefaultManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Em
 	}
 
 	project.ActionStatus = model.ProjectInProgressActionLabel
+	project.Status = model.BuildStatusInProgress
 
 	m.UpdateProject(project)
 
@@ -97,18 +98,20 @@ func (m DefaultManager) CreateAllBuilds(projectId string, WsEmmitter *emitter.Em
 	go func(project *model.Project) {
 		sync := make(chan string)
 
+		projectStatus := model.BuildStatusFinishedSuccess
 		for _, test := range project.Tests {
 			m.CreateBuild(projectId, test.ID, model.NewBuildAction(model.BuildStartActionLabel), sync)
-			<-sync
+			if <-sync == model.BuildStatusFinishedFailed {
+				projectStatus = model.BuildStatusFinishedFailed
+			}
 		}
 
 		project.ActionStatus = model.ProjectFinishedActionLabel
+		project.Status       = projectStatus
 
 		m.UpdateProject(project)
 
-		log.Printf("broadcasting mssg")
 		WsEmmitter.BroadcastMessage("project-update", struct{}{}, false, 0)
-		log.Printf("broadcasted mssg")
 	}(project)
 
 	return project.ActionStatus, nil
@@ -250,10 +253,10 @@ func (m DefaultManager) executeBuildTasks(
 		}
 	}
 	// Check to see if build was successful by comparing the statuses for all build tasks
-	buildStatus := "finished_success"
+	buildStatus := model.BuildStatusFinishedSuccess
 	for _, status := range buildStatuses {
-		if status != "finished_success" {
-			buildStatus = "finished_failed"
+		if status != model.BuildStatusFinishedSuccess {
+			buildStatus = model.BuildStatusFinishedFailed
 			break
 		}
 	}
@@ -325,11 +328,11 @@ func (m DefaultManager) executeBuildTask(
 		if isSafe && clairErr == nil {
 			log.Debugf("Clair yielded no errors for image %s.", image.PullableName())
 			appliedTag = test.Tagging.OnSuccess
-			finishLabel = "finished_success"
+			finishLabel = model.BuildStatusFinishedSuccess
 		} else {
 			log.Debugf("Clair yielded error(s) for image %s.", image.PullableName())
 			appliedTag = test.Tagging.OnFailure
-			finishLabel = "finished_failure"
+			finishLabel = model.BuildStatusFinishedFailed
 		}
 
 		log.Debugf("Creating result objects for test %s", test.Name)

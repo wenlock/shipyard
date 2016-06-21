@@ -138,7 +138,7 @@
                                     <tbody>
                                     <tr ng-repeat="test in vm.results.testResults" jquery>
                                         <td>
-                                            <i class="circle icon" ng-class="test.status == 'finished_success' ? 'green' : 'red'"></i>
+                                            <i class="circle icon" ng-class="test.status == 'finished_success' ? 'green' : a.status == 'finished_failed' ? 'red' : 'grey'"></i>
                                             <span class="hidden">{{test.status}}</span>
                                         </td>
                                         <td id="inspect-view-test-id">{{test.testId | limitTo:12}}</td>

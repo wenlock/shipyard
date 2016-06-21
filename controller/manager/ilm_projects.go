@@ -69,6 +69,7 @@ func (m DefaultManager) SaveProject(project *model.Project) error {
 	project.CreationTime = time.Now().UTC()
 	project.UpdateTime = project.CreationTime
 	project.ActionStatus = model.ProjectNewActionLabel
+	project.Status = model.BuildStatusNewLabel
 	// TODO: find a way to retrieve the current user
 	project.Author = "author"
 
