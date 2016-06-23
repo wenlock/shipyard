@@ -18,6 +18,7 @@
             'shipyard.images',
             'shipyard.filters',
             'angular-jwt',
+            'angular.filter',
             'base64',
             'selectize',
             'ui.router'
