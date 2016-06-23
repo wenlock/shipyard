@@ -11,11 +11,13 @@ ILM_DEV_IMAGE=${ILM_DEV_IMAGE:-"ilmhpe/ilm-go"}
 ILM_NO_PROXY=${ILM_NO_PROXY:-"swarm,proxy,controller,rethinkdb,postgres,clair"}
 COMPOSE_FILE=${COMPOSE_FILE:-"docker-compose.yml"}
 RETHINK_IMAGE=${RETHINK_IMAGE:-rethinkdb:2.3}
+DOCKERPROXY_IMAGE=${DOCKERPROXY_IMAGE:-ehazlett/docker-proxy:latest}
 ILM_DEBUG=${ILM_DEBUG:-""}
 # For ILM tests only
 # Supply rethinkdb data folder, if needed
 RETHINKDB_DATA_FOLDER=${RETHINKDB_DATA_FOLDER:-""}
 RDB_CONTAINER_NAME=${RDB_CONTAINER_NAME:-"rethinkdb_$(date +%Y%m%d_%H%M%S)"}
+PROXY_CONTAINER_NAME=${PROXY_CONTAINER_NAME:-"dockerproxy_$(date +%Y%m%d_%H%M%S)"}
 
 # Proxy settings are read off the system. Override with care!
 PROXY_DETECTED=${PROXY_DETECTED:-""}
@@ -103,16 +105,31 @@ function ILM_TEST() {
     if [ $result -ne 0 ]; then
         echo "   Error: Could not start required rethinkdb container."
         exit $result
+    fi    
+
+    # Run also the docker proxy container for the tests that need to communicate 
+    # with the docker daemon.
+    MY_CMD="docker run -d --name $PROXY_CONTAINER_NAME -v /var/run/docker.sock:/var/run/docker.sock "
+
+    MY_CMD="$MY_CMD $DOCKERPROXY_IMAGE -D"
+    echo "$MY_CMD"
+    $MY_CMD
+    result=$?
+    if [ $result -ne 0 ]; then
+        echo "   Error: Could not start required dockerproxy container."
+        exit $result
     fi
 
     echo "   Starting ILM tests..."
-    echo "$ILM_BUILD_CMD --link $RDB_CONTAINER_NAME:rethinkdb $ILM_DEV_IMAGE -c 'make test'"
-    $ILM_BUILD_CMD --link $RDB_CONTAINER_NAME:rethinkdb $ILM_DEV_IMAGE -c 'make test'
+    echo "$ILM_BUILD_CMD --link $RDB_CONTAINER_NAME:rethinkdb --link $PROXY_CONTAINER_NAME:proxy $ILM_DEV_IMAGE -c 'make test'"
+    $ILM_BUILD_CMD -e SHIPYARD_DOCKER_URI="tcp://proxy:2375" --link $RDB_CONTAINER_NAME:rethinkdb --link $PROXY_CONTAINER_NAME:proxy $ILM_DEV_IMAGE -c 'make test'
     result=$?
     
     # remove the rethinkdb container
     docker rm -f $RDB_CONTAINER_NAME
-
+    # remove the dockerproxy container
+    docker rm -f $PROXY_CONTAINER_NAME
+    
     if [ $result -ne 0 ]; then
         echo "   Error: Could not test ILM! Exiting."
         exit $result
