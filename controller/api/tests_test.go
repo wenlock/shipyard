@@ -42,7 +42,7 @@ func init() {
 
 	// Default docker endpoint
 	if dockerEndpoint == "" {
-		dockerEndpoint = "tcp://proxy:2375"
+		dockerEndpoint = "tcp://127.0.0.1:2375"
 	}
 
 	rethinkDbEndpoint := os.Getenv("SHIPYARD_RETHINKDB_URI")
