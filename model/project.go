@@ -7,6 +7,8 @@ const (
 	ProjectInProgressActionLabel = "in_progress"
 	ProjectStoppedActionLabel = "stopped"
 	ProjectFinishedActionLabel = "finished"
+
+
 )
 
 // Please note that Images is not stored in the database as a nested collection (i.e. gorethink:"-")
