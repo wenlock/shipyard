@@ -30,7 +30,8 @@
     "angular-selectize2": "~1.2.1",
     "moment": "~2.10.2",
     "angular-websocket": "^2.0.0",
-    "tablesort": "http://semantic-ui.com/javascript/library/tablesort.js"
+    "tablesort": "http://semantic-ui.com/javascript/library/tablesort.js",
+    "angular-filter": "~0.5.8"
   },
   "resolutions": {
     "angular": "~1.3.15"

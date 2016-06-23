@@ -97,7 +97,7 @@
                                         <label>Image Name </label>
                                         <select name="image" ng-model="vm.createImage.name" class="ui search fluid dropdown image" ng-change="vm.checkImage(vm.createImage)">
                                             <option value="">Name</option>
-                                            <option ng-repeat="a in vm.shipyardImages" value="{{a.name}}">{{a.name}}</option>
+                                            <option ng-repeat="a in vm.shipyardImages | unique:'name'" value="{{a.name}}">{{a.name}}</option>
                                         </select>
                                     </div>
                                     <div ng-show="vm.createImage.location === 'Shipyard Registry'" class="three wide field" >
@@ -266,7 +266,7 @@
                                         <label>Image Name </label>
                                         <select name="image" ng-model="vm.editImage.name" class="ui search fluid dropdown image" ng-change="vm.checkImage(vm.editImage)">
                                             <option value="">{{vm.editImage.name}}</option>
-                                            <option ng-repeat="a in vm.shipyardImages" value="{{a.name}}">{{a.name}}</option>
+                                            <option ng-repeat="a in vm.shipyardImages | unique:'name'" value="{{a.name}}">{{a.name}}</option>
                                         </select>
                                     </div>
                                     <div ng-show="vm.editImage.location === 'Shipyard Registry'" class="three wide field" >
