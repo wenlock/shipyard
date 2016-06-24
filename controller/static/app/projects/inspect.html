@@ -116,6 +116,59 @@
                                 <div class="ui dividing header"></div>
                                 <div class="six fields">
                                     <div class="field">
+                                        <h5>Images Results</h5>
+                                    </div>
+                                </div>
+                                <table class="ui sortable celled table">
+                                    <thead>
+                                    <tr>
+                                        <th class="collapsing"><i class="heartbeat icon"></i></th>
+                                        <th>Image ID</th>
+                                        <th>Build ID</th>
+                                        <th>Image Name</th>
+                                        <th>Date</th>
+                                        <th>End Date</th>
+                                        <th>Applied Tag</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr ng-repeat="image in vm.results.testResults" jquery>
+                                        <td>
+                                            <i class="circle icon" ng-class="image.status == 'finished_success' ? 'green' : image.status == 'finished_failed' ? 'red' : 'grey'"></i>
+                                            <span class="hidden">{{image.status}}</span>
+                                        </td>
+                                        <td>{{image.imageId | limitTo:12}}</td>
+                                        <td>{{image.buildId | limitTo:12}}</td>
+                                        <td>{{image.imageName}}</td>
+                                        <td>{{image.date}}</td>
+                                        <td>{{image.endDate}}</td>
+                                        <td><span ng-repeat="tag in image.appliedTag">
+                                            <div class="ui label">
+                                                {{tag}}
+                                            </div>
+                                        </span></td>
+                                        <td class="collapsing">
+                                            <div id="inspect-view-image-results" ui-sref="dashboard.buildResults({projectId: vm.results.projectId, testId: image.testId, buildId: image.buildId, imageId: image.dockerImageId})" class="basic compact blue ui icon button"  ng-class="{disabled: image.istestResult}">
+                                                <i class="search icon"></i>
+                                            </div>
+                                            <div class="basic compact blue ui icon button">
+                                                <i class="file text icon"></i>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ui padded grid">
+                        <div class="row">
+                            <div class="column">
+                                <div class="ui dividing header"></div>
+                                <div class="six fields">
+                                    <div class="field">
                                         <h5>Test Results</h5>
                                     </div>
                                 </div>
@@ -138,7 +191,7 @@
                                     <tbody>
                                     <tr ng-repeat="test in vm.results.testResults" jquery>
                                         <td>
-                                            <i class="circle icon" ng-class="test.status == 'finished_success' ? 'green' : a.status == 'finished_failed' ? 'red' : 'grey'"></i>
+                                            <i class="circle icon" ng-class="test.status == 'finished_success' ? 'green' : test.status == 'finished_failed' ? 'red' : 'grey'"></i>
                                             <span class="hidden">{{test.status}}</span>
                                         </td>
                                         <td id="inspect-view-test-id">{{test.testId | limitTo:12}}</td>
