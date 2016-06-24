@@ -340,6 +340,7 @@ func (m DefaultManager) executeBuildTask(
 		// Instantiate `testResult` with the information we have
 		testResult := &model.TestResult{
 			TestId: test.ID,
+			ImageId: image.ID,
 			DockerImageId: dockerImageId,
 			BuildId: build.ID,
 			TestName: test.Name,
