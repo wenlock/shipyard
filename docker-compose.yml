@@ -20,20 +20,12 @@ services:
       - "2375"
     command: -D
 
-  swarm:
-    env_file: .env
-    restart: always
-    image: swarm:1.2.0
-    command: m --host tcp://0.0.0.0:2375 proxy:2375
-    ports:
-      - "2375"
-
   controller:
     env_file: .env
     restart: always
-    image: ilmhpe/ilm
+    image: ilmhpe/ilm:dev
     entrypoint: /bin/bash
-    command: -c "./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
+    command: -c "./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://proxy:2375"
     volumes_from:
       - proxy
     ports:
