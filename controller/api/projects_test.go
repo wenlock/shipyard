@@ -20,7 +20,7 @@ const (
 	PROJECT2_NAME      = "project 2"
 	PROJECT1_DESC      = "the first project"
 	PROJECT2_DESC      = "the second project"
-	PROJECT1_STATUS    = "good status"
+	PROJECT1_STATUS    = "new"
 	PROJECT2_STATUS    = "bad status"
 	PROJECT1_NAME2     = "project1 modified"
 	PROJECT1_DESC2     = "the first project modified"
