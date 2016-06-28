@@ -101,7 +101,7 @@
                     <td class="collapsing">{{a.id | limitTo:12}}</td>
                     <td id="project-name">{{a.name}}</td>
                     <td>{{a.lastRun}}</td>
-                    <td>{{project.actionStatus}}</td>
+                    <td>{{a.actionStatus}}</td>
                     <td class="collapsing">
                         <div ui-sref="dashboard.inspect_project({id: a.id, projectName: a.name})" class="basic compact blue ui icon button"
                              ng-class="{disabled: !a.isBuilt}">
