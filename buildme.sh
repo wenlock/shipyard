@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 #***************************************************************************************
 # This script builds tests and deploys ILM
 # View commands results by setting up an environment variable named ILM_DEBUG with any value
@@ -47,31 +47,32 @@ fi
 function SET_ILM_PROXY_SETTING() {
     touch .env # create the file if missing
 
-    if [ ! -z "$WITH_PROXY" ]; then
+    if [  -z "$WITH_PROXY" ]; then
         if [ ! -z "$http_proxy" ]; then
           echo "http_proxy=$http_proxy" > .env
           PROXY_DETECTED="yes"
-          WITH_PROXY="--build-arg \"http_proxy=$http_proxy\""
+          WITH_PROXY="--build-arg http_proxy=$http_proxy"
         fi
 
         if [ ! -z "$https_proxy" ]; then
           echo "https_proxy=$https_proxy" >> .env
-          WITH_PROXY="$WITH_PROXY --build-arg \"https_proxy=$https_proxy\""
+          WITH_PROXY="$WITH_PROXY --build-arg https_proxy=$https_proxy"
         elif [ ! -z $PROXY_DETECTED ]; then
           echo "https_proxy=$http_proxy" >> .env
-          WITH_PROXY="$WITH_PROXY --build-arg \"https_proxy=$http_proxy\""
+          WITH_PROXY="$WITH_PROXY --build-arg https_proxy=$http_proxy"
         fi
 
         if [ ! -z "$no_proxy" ]; then
           if [ ! -z "$PROXY_DETECTED" ]; then
             echo "no_proxy=$ILM_NO_PROXY,$no_proxy" >> .env
-            WITH_PROXY="$WITH_PROXY --build-arg \"no_proxy=$ILM_NO_PROXY,$no_proxy\""
+            WITH_PROXY="$WITH_PROXY --build-arg no_proxy=$ILM_NO_PROXY,$no_proxy"
           else
             echo "no_proxy=$ILM_NO_PROXY" >> .env
-            WITH_PROXY="$WITH_PROXY --build-arg \"no_proxy=$ILM_NO_PROXY\""
+            WITH_PROXY="$WITH_PROXY --build-arg no_proxy=$ILM_NO_PROXY"
           fi
         fi
     fi
+echo "WITH_PROXY=$WITH_PROXY"
 }
 
 #******************************************************************************
@@ -79,8 +80,9 @@ function SET_ILM_PROXY_SETTING() {
 function ILM_BUILD() {
     echo "   Building ILM..."
     echo "$ILM_BUILD_CMD $ILM_DEV_IMAGE -c 'make clean && make all'"
-    $ILM_BUILD_CMD $ILM_DEV_IMAGE -c 'make clean && make all'
+    RET=`$ILM_BUILD_CMD $ILM_DEV_IMAGE -c 'make clean && make all'`
     result=$?
+    echo $RET
 
     if [ $result -ne 0 ]; then
         echo "   Error: Could not build ILM! Exiting."
@@ -159,8 +161,9 @@ function CREATE_IMAGE() {
     # ignoring error for now (likely image does not exist locally yet)
 
     echo "docker build $WITH_PROXY --tag $SY_IMAGE_NAME -f $DOCKERFILE $(pwd)"
-    docker build $WITH_PROXY --tag $SY_IMAGE_NAME -f $DOCKERFILE $(pwd)
+    RET=$(docker build $WITH_PROXY --tag $SY_IMAGE_NAME -f $DOCKERFILE $(pwd))
     result=$?
+    echo $RET
 
     if [ $result -ne 0 ]; then
         echo "   Error: Could not build a new ILM image! Exiting."
