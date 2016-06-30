@@ -79,10 +79,9 @@ echo "WITH_PROXY=$WITH_PROXY"
 # build the binaries
 function ILM_BUILD() {
     echo "   Building ILM..."
-    echo "$ILM_BUILD_CMD $ILM_DEV_IMAGE -c 'make clean && make all'"
-    RET=`$ILM_BUILD_CMD $ILM_DEV_IMAGE -c 'make clean && make all'`
+    echo "$ILM_BUILD_CMD --env-file=$(pwd)/.env $ILM_DEV_IMAGE -c 'make clean && make all'"
+    $ILM_BUILD_CMD --env-file=$(pwd)/.env $ILM_DEV_IMAGE -c 'make clean && make all'
     result=$?
-    echo $RET
 
     if [ $result -ne 0 ]; then
         echo "   Error: Could not build ILM! Exiting."
