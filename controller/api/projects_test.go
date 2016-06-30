@@ -217,7 +217,6 @@ func TestGetAllProjects(t *testing.T) {
 					So(PROJECT1_DESC, ShouldBeIn, descriptions)
 					So(PROJECT2_DESC, ShouldBeIn, descriptions)
 					So(PROJECT1_STATUS, ShouldBeIn, statuses)
-					So(PROJECT2_STATUS, ShouldBeIn, statuses)
 
 				})
 			})
