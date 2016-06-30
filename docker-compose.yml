@@ -17,7 +17,7 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     ports:
-      - "2375"
+      - "2376:2375"
     command: -D
 
   swarm:
