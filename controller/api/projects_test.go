@@ -39,12 +39,14 @@ const (
 	IMAGE2_DESC        = "my alpine image"
 	IMAGE2_TAG         = "latest"
 	IMAGE2_LOCATION    = "DockerHub Public Registry"
+	IMAGE_ID           = "27end983nbd3bd8"
 )
 
 var (
 	PROJECT1_SAVED_ID         string
 	PROJECT1_PREV_UPDATE_TIME time.Time
 	PROJECT3_SAVED_ID         string
+	PROJECT_TO_RUN            string
 )
 
 func init() {
@@ -217,8 +219,6 @@ func TestGetAllProjects(t *testing.T) {
 					So(PROJECT1_DESC, ShouldBeIn, descriptions)
 					So(PROJECT2_DESC, ShouldBeIn, descriptions)
 					So(PROJECT1_STATUS, ShouldBeIn, statuses)
-					So(PROJECT2_STATUS, ShouldBeIn, statuses)
-
 				})
 			})
 
@@ -368,7 +368,7 @@ func TestAddProjectImage(t *testing.T) {
 				ts.URL,
 				projectId,
 				IMAGE1_NAME,
-				"",
+				IMAGE_ID,
 				IMAGE1_TAG,
 				[]string{"latest", "awesomeTag"},
 				IMAGE1_DESC,
@@ -394,6 +394,81 @@ func TestAddProjectImage(t *testing.T) {
 					PROJECT3_SAVED_ID = projectId
 				})
 			})
+		})
+
+	})
+}
+
+
+func TestAddProjectTest(t *testing.T) {
+	Convey("When we add a new test to it", t, func() {
+		id, code, err := apiClient.CreateTest(
+			SY_AUTHTOKEN,
+			ts.URL,
+			"testName",
+			"description",
+			[]*model.TargetArtifact{
+				&model.TargetArtifact{
+					ID: IMAGE_ID,
+					ArtifactType: "image",
+				},
+			},
+			"",
+			"Clair [Internal]",
+			"",
+			"",
+			PROJECT3_SAVED_ID,
+			nil,
+			"s",
+			"f",
+			"",
+		)
+		Convey("Then we should get a successful response", func() {
+			So(code, ShouldEqual, http.StatusCreated)
+			So(id, ShouldNotBeNil)
+			So(err, ShouldBeNil)
+			Convey("And the project should now have an image embedded in its structure", func() {
+				project, code, err := apiClient.GetProject(SY_AUTHTOKEN, ts.URL, PROJECT3_SAVED_ID)
+				So(err, ShouldBeNil)
+				So(project, ShouldNotBeNil)
+				So(code, ShouldEqual, http.StatusOK)
+				So(len(project.Tests), ShouldEqual, 1)
+			})
+
+			PROJECT_TO_RUN = PROJECT3_SAVED_ID
+		})
+	})
+}
+
+func TestExecuteProject(t *testing.T) {
+	Convey("Given that we execute the project we just created", t, func() {
+		status, err := apiClient.RunProject(SY_AUTHTOKEN, ts.URL, PROJECT_TO_RUN)
+		So(status, ShouldEqual, http.StatusCreated)
+		So(err, ShouldBeNil)
+
+		Convey("Then we should get a successful response", func() {
+			var project *model.Project
+
+			timeout := true
+			go func() {
+				time.Sleep(time.Second * 60)
+				timeout = false
+			}()
+			for timeout {
+				p, code, err := apiClient.GetProject(SY_AUTHTOKEN, ts.URL, PROJECT_TO_RUN)
+				So(err, ShouldBeNil)
+				So(p, ShouldNotBeNil)
+				So(code, ShouldEqual, http.StatusOK)
+
+				if p.ActionStatus == model.ProjectFinishedActionLabel {
+					project = p
+					break
+				}
+				time.Sleep(time.Second * 5)
+			}
+
+			So(project.ActionStatus, ShouldEqual, model.ProjectFinishedActionLabel)
+			So(project.Status, ShouldEqual, model.BuildStatusFinishedSuccess)
 		})
 	})
 }
