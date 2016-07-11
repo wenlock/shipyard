@@ -31,7 +31,7 @@ services:
   controller:
     env_file: .env
     restart: always
-    image: ilmhpe/ilm:dev
+    image: ilmhpe/ilm
     entrypoint: /bin/bash
     command: -c "sleep 30 && ./shipyard -D server --rethinkdb-addr rethinkdb:28015 -d tcp://swarm:2375"
     volumes_from:
