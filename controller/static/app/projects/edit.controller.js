@@ -229,6 +229,8 @@
                 onChange: function(value, text, $selectedItem) {
                     vm.createImage.location = value;
 
+                    vm.createImage.registryId = "";
+
                     vm.resetValues();
 
                     $scope.$apply();
