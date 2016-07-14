@@ -192,7 +192,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 
 	//Public Registry Proxy
 	apiRouter.HandleFunc("/api/v1/search", a.dockerhubSearch).Methods("GET")
-	apiRouter.HandleFunc("/api/v1/repositories/tags", a.dockerhubTags).Methods("GET")
+	apiRouter.HandleFunc("/api/v2/repositories/library/{imageName}/tags/", a.dockerhubTags).Methods("GET")
 
 	apiRouter.HandleFunc("/api/roles", a.roles).Methods("GET")
 	apiRouter.HandleFunc("/api/nodes", a.nodes).Methods("GET")
@@ -364,6 +364,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 	globalMux.Handle("/v1.21/", swarmAuthRouter)
 	globalMux.Handle("/v1.22/", swarmAuthRouter)
 	globalMux.Handle("/v1.23/", swarmAuthRouter)
+	globalMux.Handle("/v1.24/", swarmAuthRouter)
 
 	// check for admin user
 	if _, err := controllerManager.Account("admin"); err == manager.ErrAccountDoesNotExist {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"github.com/gorilla/mux"
 )
 
 // dockerhub forward POC
@@ -35,14 +36,14 @@ func (a *Api) dockerhubSearch(w http.ResponseWriter, r *http.Request) {
 func (a *Api) dockerhubTags(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
-	repo := r.URL.Query().Get("r")
+	vars := mux.Vars(r)
+	imageName := vars["imageName"]
 
-	response, err := http.Get("https://registry.hub.docker.com/v1/repositories/" + repo + "/tags")
+	response, err := http.Get("https://hub.docker.com/v2/repositories/library/" + imageName + "/tags/")
 	if err != nil {
 		http.Error(w, err.Error(), response.StatusCode)
 		return
 	}
-
 	defer response.Body.Close()
 
 	contents, err := ioutil.ReadAll(response.Body)
@@ -50,6 +51,5 @@ func (a *Api) dockerhubTags(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), response.StatusCode)
 		return
 	}
-
 	w.Write(contents)
 }

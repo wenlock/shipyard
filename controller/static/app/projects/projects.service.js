@@ -88,7 +88,7 @@
             getPublicRegistryTags: function(imageName) {
                 cancelerGetPublicRegistryTags = $q.defer();
                 var promise = $http
-                    .get('/api/v1/repositories/tags?r='+imageName, {timeout: cancelerGetPublicRegistryTags.promise})
+                    .get('/api/v2/repositories/library/' + imageName + '/tags/', {timeout: cancelerGetPublicRegistryTags.promise})
                     .then(function(response) {
                         return response.data;
                     });

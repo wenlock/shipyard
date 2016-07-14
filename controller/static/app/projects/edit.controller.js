@@ -282,7 +282,7 @@
                 $('.ui.selection.fluid.dropdown.tag.create').dropdown('restore defaults');
                 ProjectService.getPublicRegistryTags(result.name)
                     .then(function(data) {
-                        vm.publicRegistryTags = data;
+                        vm.publicRegistryTags = data.results;
                         vm.createImageTagSpin = false;
                     }, function(data) {
                         vm.error = data;
@@ -314,7 +314,7 @@
                 $('.ui.selection.fluid.dropdown.edit.tag').dropdown('restore defaults');
                 ProjectService.getPublicRegistryTags(result.name)
                     .then(function(data) {
-                        vm.publicRegistryTags = data;
+                        vm.publicRegistryTags = data.results;
                         vm.editImageTagSpin = false;
                     }, function(data) {
                         vm.error = data;
