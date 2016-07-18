@@ -200,9 +200,6 @@
                     vm.createImage.tag = "";
                     vm.createImage.description = "";
                     vm.buttonStyle = "disabled";
-                    vm.editImage.name = "";
-                    vm.editImage.tag = "";
-                    vm.editImage.description = "";
                     getShipyardImages(value);
                 }
             });
@@ -257,6 +254,40 @@
                             vm.editImage.additionalTags.push(vm.publicRegistryTags[index].name);
                         }
                     });
+
+                    $scope.$apply();
+                }
+            });
+        $(".ui.fluid.selection.dropdown.edit.private.registry")
+            .dropdown({
+                onChange: function(value, text, $selectedItem) {
+                    getShipyardImages(value);
+                    vm.editImage.registry = text.toString();
+                    vm.editImage.registryId = value.toString();
+                    vm.editImage.name = "";
+                    vm.editImage.tag = "";
+                    vm.editImage.description = "";
+                    vm.buttonStyle = "disabled";
+
+                    $scope.$apply();
+                }
+            });
+        $(".ui.fluid.selection.dropdown.edit.private.registry.image")
+            .dropdown({
+                onChange: function(value, text, $selectedItem) {
+                    vm.editImage.name = value.toString();
+                    vm.editImage.tag = "";
+                    vm.editImage.description = "";
+                    vm.buttonStyle = "disabled";
+
+                    $scope.$apply();
+                }
+            });
+        $(".ui.fluid.selection.dropdown.edit.private.registry.tag")
+            .dropdown({
+                onChange: function(value, text, $selectedItem) {
+                    vm.editImage.tag = value.toString();
+                    checkImage(vm.editImage);
 
                     $scope.$apply();
                 }
@@ -530,7 +561,6 @@
             vm.buttonStyle = "disabled";
             vm.randomEditId = vm.editImage.id;
             vm.editImageTagSpin = true;
-            $('#editImageTagDefault').html(image.tag);
             $scope.$apply();
             if(image.location === "Public Registry") {
                 ProjectService.getPublicRegistryTags(image.name)
@@ -557,7 +587,13 @@
                     });
             }
             if(image.location === "Shipyard Registry") {
+                angular.forEach(vm.registries, function(registry) {
+                    if(registry.id === vm.editImage.registryId) {
+                        vm.editImage.registry = registry.name;
+                    }
+                });
                 getShipyardImages(image.registryId);
+                checkImage(image);
                 vm.editImageTagSpin = false;
                 vm.buttonStyle = "positive";
             }

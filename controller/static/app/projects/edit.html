@@ -255,26 +255,38 @@
                                         <div></div>
                                     </div>
 
-                                    <div ng-show="vm.editImage.location === 'Shipyard Registry'" class="four wide field">
+                                    <div id="edit-image-registry" ng-show="vm.editImage.location === 'Shipyard Registry'" class="four wide field">
                                         <label>Registry</label>
-                                        <select name="registry_name" ng-model="vm.editImage.registryId" class="ui search fluid dropdown registry">
-                                            <option value="">{{(vm.registries | filter:{'id': vm.editImage.registryId}:true)[0].name}}</option>
-                                            <option ng-repeat="r in vm.registries" value="{{r.id}}">{{r.name}}</option>
-                                        </select>
+                                        <div class="ui fluid selection dropdown edit private registry" style="height: 38px">
+                                            <i class="dropdown icon"></i>
+                                            <input id="editRegistryDefault" class="default text" style="padding-top: 0px; padding-left: 0px; border: none; border-color: transparent; width: 95%; height:25px; cursor: pointer;" placeholder="{{vm.editImage.registry}}" readonly>
+                                            <div class="menu">
+                                                <div id="edit-registry-results" ng-repeat="r in vm.registries"
+                                                     class="item" data-value="{{r.id}}">{{r.name}}</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div ng-show="vm.editImage.location === 'Shipyard Registry'" class="four wide field">
+                                    <div id="edit-image-name" ng-show="vm.editImage.location === 'Shipyard Registry'" class="four wide field">
                                         <label>Image Name </label>
-                                        <select name="image" ng-model="vm.editImage.name" class="ui search fluid dropdown image" ng-change="vm.checkImage(vm.editImage)">
-                                            <option value="">{{vm.editImage.name}}</option>
-                                            <option ng-repeat="a in vm.shipyardImages | unique:'name'" value="{{a.name}}">{{a.name}}</option>
-                                        </select>
+                                        <div class="ui fluid selection dropdown edit private registry image" style="height: 38px">
+                                            <i class="dropdown icon"></i>
+                                            <input id="editImageDefault" class="default text" style="padding-top: 0px; padding-left: 0px; border: none; border-color: transparent; width: 95%; height:25px; cursor: pointer;" placeholder="{{vm.editImage.name}}" readonly>
+                                            <div class="menu">
+                                                <div id="edit-shipyard-registry-image-results" ng-repeat="a in vm.shipyardImages | unique:'name'"
+                                                     class="item" data-value="{{a.name}}">{{a.name}}</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div ng-show="vm.editImage.location === 'Shipyard Registry'" class="three wide field" >
+                                    <div id="edit-image-private-registry-tag" ng-show="vm.editImage.location === 'Shipyard Registry'" class="three wide field" >
                                         <label>Tag</label>
-                                        <select name="tag" ng-model="vm.editImage.tag" class="ui search fluid dropdown tag" ng-change="vm.checkImage(vm.editImage)">
-                                            <option value="">{{vm.editImage.tag}}</option>
-                                            <option ng-repeat="a in vm.shipyardImages | filter: { name: vm.editImage.name }" value="{{a.tag}}">{{a.tag}}</option>
-                                        </select>
+                                        <div class="ui fluid selection dropdown edit private registry tag" style="height: 38px">
+                                            <i class="dropdown icon"></i>
+                                            <input id="editPrivateRegistryImageTagDefault" class="default text" style="padding-top: 0px; padding-left: 0px; border: none; border-color: transparent; width: 95%; height:25px; cursor: pointer;" placeholder="{{vm.editImage.tag}}" readonly>
+                                            <div class="menu">
+                                                <div id="edit-shipyard-registry-image-tag-results" ng-repeat="a in vm.shipyardImages | filter: { name: vm.editImage.name }"
+                                                     class="item" data-value="{{a.tag}}">{{a.tag}}</div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div ng-show="vm.editImage.location === 'Public Registry'" class="four wide field">
@@ -289,11 +301,10 @@
                                     </div>
                                     <div id="edit-image-tag" ng-show="vm.editImage.location === 'Public Registry'" class="four wide field">
                                         <label>Tag</label>
-                                        <div class="ui fluid search selection dropdown edit tag">
-                                            <input type="hidden" name="tag">
+                                        <div class="ui fluid selection dropdown edit tag" style="height: 38px">
                                             <i ng-if="!vm.editImageTagSpin" class="dropdown icon"></i>
                                             <i ng-if="vm.editImageTagSpin" class="repeat icon spin" aria-hidden="true" style="float: right; position: relative; width: auto; font-size: 0.85714286; margin: 0em 0em 0em 1em;"></i>
-                                            <div id="editImageTagDefault" class="default text"></div>
+                                            <input id="editImageTagDefault" class="default text" style="padding-top: 0px; padding-left: 0px; border: none; border-color: transparent; width: 95%; height:25px; cursor: pointer;" placeholder="{{vm.editImage.tag}}" readonly>
                                             <div class="menu">
                                                 <div id="edit-image-tag-results" ng-repeat="a in vm.publicRegistryTags"
                                                      class="item" data-value="{{a.name}}">{{a.name}}</div>
