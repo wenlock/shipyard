@@ -8,7 +8,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/context"
-	"github.com/gorilla/mux"
 	"github.com/mailgun/oxy/forward"
 	"github.com/shipyard/shipyard/controller/manager"
 	"github.com/shipyard/shipyard/controller/middleware/access"
@@ -18,6 +17,7 @@ import (
 	"github.com/shipyard/shipyard/utils/tlsutils"
 	"github.com/shipyard/shipyard/utils/emitter"
 	"golang.org/x/net/websocket"
+	"github.com/gorilla/mux"
 )
 
 type (
@@ -192,7 +192,7 @@ func (a *Api) Setup() (*http.ServeMux, error) {
 
 	//Public Registry Proxy
 	apiRouter.HandleFunc("/api/v1/search", a.dockerhubSearch).Methods("GET")
-	apiRouter.HandleFunc("/api/v2/repositories/library/{imageName}/tags/", a.dockerhubTags).Methods("GET")
+	apiRouter.HandleFunc("/api/v2/repositories/tags", a.dockerhubTags).Methods("GET")
 
 	apiRouter.HandleFunc("/api/roles", a.roles).Methods("GET")
 	apiRouter.HandleFunc("/api/nodes", a.nodes).Methods("GET")

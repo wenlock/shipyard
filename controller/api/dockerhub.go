@@ -4,8 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"github.com/gorilla/mux"
+	"strconv"
+	"encoding/json"
+	"github.com/shipyard/shipyard/model"
+	"strings"
 )
+// code to get all tags from dockerhub
+
+
 
 // dockerhub forward POC
 func (a *Api) dockerhubSearch(w http.ResponseWriter, r *http.Request) {
@@ -36,20 +42,51 @@ func (a *Api) dockerhubSearch(w http.ResponseWriter, r *http.Request) {
 func (a *Api) dockerhubTags(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
-	vars := mux.Vars(r)
-	imageName := vars["imageName"]
+	allTags := []model.MyTag{}
+	globalContents := []model.JsonData{}
 
-	response, err := http.Get("https://hub.docker.com/v2/repositories/library/" + imageName + "/tags/")
-	if err != nil {
-		http.Error(w, err.Error(), response.StatusCode)
-		return
+	repo := r.URL.Query().Get("r")
+	fmt.Printf("Got image name: %s\n", repo)
+	if !strings.Contains(repo,"/"){
+		repo = "library/" + repo
 	}
-	defer response.Body.Close()
+	i := 1
+	for {
+		jsonData := model.JsonData{}
+		response, err := http.Get("https://hub.docker.com/v2/repositories/" + repo + "/tags/?page=" + strconv.Itoa(i))
+		if err != nil {
+			http.Error(w, err.Error(), response.StatusCode)
+			return
+		}
+		defer response.Body.Close()
 
-	contents, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		http.Error(w, err.Error(), response.StatusCode)
-		return
+		contents, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			http.Error(w, err.Error(), response.StatusCode)
+			return
+		}
+		err = json.Unmarshal(contents, &jsonData)
+		if err != nil {
+			fmt.Printf("Error unmarshaling data!\n")
+		}
+		globalContents = append(globalContents, jsonData)
+		if (jsonData.Next == ""){
+			break
+		}
+		i ++
 	}
-	w.Write(contents)
+	for _, data := range globalContents{
+		for _, res := range data.Results{
+
+			tag := model.MyTag{}
+			tag.Name = res.Name
+			allTags = append(allTags, tag)
+		}
+	}
+	finalResult := model.JsonResult{Results: allTags}
+	myContents, err := json.Marshal(finalResult)
+	if err != nil {
+		fmt.Printf("Error marshaling data!\n")
+	}
+	w.Write(myContents)
 }
