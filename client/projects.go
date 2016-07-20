@@ -171,3 +171,12 @@ func DeleteProjectImage(authHeader, url, projectId string, imageId string) (int,
 	}
 	return resp.StatusCode, nil
 }
+
+func RunProject(authHeader, url, projectId string) (int, error) {
+	resp, err := sendRequest(authHeader, "POST", fmt.Sprintf("%s/api/projects/%s/builds", url, projectId), "")
+	if err != nil {
+		return resp.StatusCode, err
+	}
+
+	return resp.StatusCode, nil
+}
